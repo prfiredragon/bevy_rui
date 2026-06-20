@@ -2,7 +2,6 @@ use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 use bevy::window::PrimaryWindow;
-use crate::focus::Focusable;
 use crate::widgets::RuiButtonStateColors;
 
 #[derive(Component)]
@@ -36,7 +35,7 @@ pub fn spawn_window<'a>(
         width: Val::Px(300.0),
         // Se mantiene el border de layout, pero el color será dibujado por el ninepatch (o ImageNode)
         border: UiRect::all(Val::Px(2.0)),
-        padding: UiRect::all(Val::Px(10.0)), 
+        padding: UiRect::all(Val::Px(2.0)), 
         overflow: Overflow::clip(),
         ..default()
     };
@@ -47,7 +46,6 @@ pub fn spawn_window<'a>(
         ImageNode::default(),
         crate::theme::RuiThemeElement::Panel,
         ZIndex(100),
-        Focusable,
         Interaction::None,
         Pickable::default(),
         bevy::ui::FocusPolicy::Block,
@@ -87,11 +85,22 @@ pub fn spawn_window<'a>(
 pub fn handle_window_close_clicks(
     mut commands: Commands,
     query: Query<(&Interaction, &RuiWindowCloseButton), Changed<Interaction>>,
+    mut active_scope: ResMut<crate::focus::RuiActiveScope>,
 ) {
     for (interaction, btn) in &query {
         if *interaction == Interaction::Pressed {
+            active_scope.remove_window(btn.window_entity);
             if let Ok(mut entity_cmds) = commands.get_entity(btn.window_entity) { entity_cmds.despawn(); }
         }
+    }
+}
+
+pub fn handle_new_windows(
+    mut active_scope: ResMut<crate::focus::RuiActiveScope>,
+    query: Query<Entity, Added<RuiWindow>>,
+) {
+    for entity in &query {
+        active_scope.push_window(entity);
     }
 }
 
@@ -124,6 +133,7 @@ pub fn handle_window_focus(
     parents: Query<&ChildOf>,
     mut q_windows: Query<&mut ZIndex, With<RuiWindow>>,
     mut counter: Local<i32>,
+    mut active_scope: ResMut<crate::focus::RuiActiveScope>,
 ) {
     if mouse.just_pressed(MouseButton::Left) {
         let mut clicked = None;
@@ -139,6 +149,7 @@ pub fn handle_window_focus(
         if let Some(win) = clicked {
             *counter += 1;
             if let Ok(mut z) = q_windows.get_mut(win) { z.0 = 100 + *counter; }
+            active_scope.set_active_window(win);
         }
     }
 }

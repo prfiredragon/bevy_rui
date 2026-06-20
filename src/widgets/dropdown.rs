@@ -20,10 +20,15 @@ pub fn spawn_dropdown<'a>(
     options: &[&str],
     modifier: impl FnOnce(&mut Node),
 ) -> EntityCommands<'a> {
-        let mut s = Node { display: Display::Flex, justify_content: JustifyContent::SpaceBetween, align_items: AlignItems::Center, padding: UiRect::all(Val::Px(8.0)), width: Val::Px(150.0), height: Val::Px(35.0), ..default() };
+        let mut s = Node {
+            padding: UiRect::all(Val::Px(4.0)),
+            justify_content: JustifyContent::SpaceBetween,
+            align_items: AlignItems::Center,
+            ..default()
+        };
         modifier(&mut s);
         let colors = RuiButtonStateColors::default();
-        let mut cmds = parent_cmd.spawn((s, Button, bevy::ui::FocusPolicy::Block, colors.clone(), ImageNode::solid_color(colors.normal)));
+        let mut cmds = parent_cmd.spawn((s, Button, crate::focus::Focusable, bevy::ui::FocusPolicy::Block, colors.clone(), ImageNode::solid_color(colors.normal)));
         cmds.with_children(|parent| {
             let header_id = parent.target_entity();
             let text_id = parent.spawn((Text::new(default_value), TextFont::default(), TextColor(Color::WHITE))).id();
@@ -36,7 +41,7 @@ pub fn spawn_dropdown<'a>(
                 for opt in options {
                     popup.spawn((
                         Node { width: Val::Percent(100.0), padding: UiRect::all(Val::Px(8.0)), ..default() },
-                        Button, bevy::ui::FocusPolicy::Block, Pickable::default(),
+                        Button, crate::focus::Focusable, bevy::ui::FocusPolicy::Block, Pickable::default(),
                         RuiButtonStateColors { normal: Color::srgb(0.15, 0.15, 0.15), hovered: Color::srgb(0.25, 0.25, 0.35), pressed: Color::srgb(0.1, 0.1, 0.2) },
                         ImageNode::solid_color(Color::srgb(0.15, 0.15, 0.15)),
                         RuiDropdownOption { dropdown_entity: header_id, value: opt.to_string() }
@@ -55,17 +60,23 @@ pub fn handle_dropdown_clicks(
     mut q_dropdowns: Query<&mut RuiDropdown>,
     mut q_popup: Query<&mut Node>,
     mut q_text: Query<&mut Text>,
+    mut active_scope: ResMut<crate::focus::RuiActiveScope>,
 ) {
     for (entity, interaction, opt_option) in &q_interactions {
         if *interaction == Interaction::Pressed {
-            println!("Dropdown clicked! GlobalTransform: {:?}", q_dropdowns.get_mut(entity).map(|_| "found"));
             if let Ok(mut dropdown) = q_dropdowns.get_mut(entity) {
                 dropdown.is_open = !dropdown.is_open;
+                if dropdown.is_open {
+                    active_scope.push_window(dropdown.popup_entity);
+                } else {
+                    active_scope.remove_window(dropdown.popup_entity);
+                }
                 if let Ok(mut node) = q_popup.get_mut(dropdown.popup_entity) { node.display = if dropdown.is_open { Display::Flex } else { Display::None }; }
             }
             if let Some(option) = opt_option {
                 if let Ok(mut dropdown) = q_dropdowns.get_mut(option.dropdown_entity) {
                     dropdown.is_open = false;
+                    active_scope.remove_window(dropdown.popup_entity);
                     if let Ok(mut node) = q_popup.get_mut(dropdown.popup_entity) { node.display = Display::None; }
                     if let Ok(mut text) = q_text.get_mut(dropdown.text_entity) { text.0 = option.value.clone(); }
                 }
@@ -78,11 +89,13 @@ pub fn close_dropdowns_on_outside_click(
     mouse: Res<ButtonInput<MouseButton>>,
     mut q_dropdowns: Query<(&Interaction, &mut RuiDropdown)>,
     mut q_popup: Query<&mut Node>,
+    mut active_scope: ResMut<crate::focus::RuiActiveScope>,
 ) {
     if mouse.just_pressed(MouseButton::Left) {
         for (interaction, mut dropdown) in &mut q_dropdowns {
             if dropdown.is_open && *interaction == Interaction::None {
                 dropdown.is_open = false;
+                active_scope.remove_window(dropdown.popup_entity);
                 if let Ok(mut node) = q_popup.get_mut(dropdown.popup_entity) { node.display = Display::None; }
             }
         }

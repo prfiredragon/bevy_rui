@@ -109,6 +109,7 @@ pub fn spawn_tabs<'a>(
                             RuiButtonStateColors { normal: Color::NONE, hovered: Color::srgb(0.8, 0.2, 0.2), pressed: Color::srgb(0.6, 0.1, 0.1) },
                             ImageNode::solid_color(Color::NONE),
                             RuiTabCloseButton { container_entity, tab_index: i },
+                            crate::focus::Focusable,
                             Pickable::default(),
                             bevy::ui::FocusPolicy::Block,
                         )).with_children(|close_btn| {
@@ -166,17 +167,20 @@ pub fn spawn_tabs<'a>(
 
 /// Sistema para gestionar los clics en las pestañas y la ocultación del contenido
 pub fn handle_tab_clicks(
-    mut interactions: Query<(&Interaction, &RuiTabButton), Changed<Interaction>>,
+    mut interactions: Query<(Entity, &Interaction, &RuiTabButton), Changed<Interaction>>,
     mut containers: Query<&mut RuiTabContainer>,
     mut contents: Query<(&mut Node, &RuiTabContent)>,
     mut buttons: Query<(&mut ImageNode, &mut BorderColor, &mut RuiButtonStateColors, &RuiTabButton)>,
     mut texts: Query<(&mut TextColor, &ChildOf)>,
+    mut input_focus: ResMut<bevy::input_focus::InputFocus>,
 ) {
-    for (interaction, button) in &mut interactions {
+    for (entity, interaction, button) in &mut interactions {
         if *interaction == Interaction::Pressed {
             if let Ok(mut container) = containers.get_mut(button.container_entity) {
                 if container.active_tab == button.tab_index { continue; }
                 container.active_tab = button.tab_index;
+                
+                input_focus.set(entity);
                 
                 // Actualizar la visibilidad del contenido
                 for (mut node, content) in &mut contents {

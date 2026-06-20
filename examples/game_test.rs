@@ -24,6 +24,7 @@ fn main() {
             )
         .add_plugins(MeshPickingPlugin) // Necesario en 0.18.1 para picking 3D
         .add_plugins(bevy_rui::RuiPlugin)
+        .insert_resource(bevy_rui::navigation::RuiNavigationConfig { enabled: true })
         .add_systems(Startup, setup)
         .add_systems(Update, animate_cube)
         .add_systems(Update, handle_buttons)
@@ -121,7 +122,7 @@ fn setup(
                 s.margin = UiRect::bottom(Val::Px(10.0));
             }, |b| {
                 b.label("Play", |_,_|{}).insert(crate::theme::RuiThemeElement::ButtonText);
-            }).insert(MenuAction::Play);
+            }).insert((MenuAction::Play, bevy::input_focus::AutoFocus));
 
             win.button(|s| {
                 s.width = Val::Percent(100.0);
@@ -161,6 +162,7 @@ fn handle_buttons(
     mut commands: Commands,
     mut interactions: Query<(&Interaction, &MenuAction), Changed<Interaction>>,
     settings_windows: Query<Entity, With<SettingsWindow>>,
+    mut app_exit: MessageWriter<AppExit>,
 ) {
     for (interaction, action) in &mut interactions {
         if *interaction == Interaction::Pressed {
@@ -268,7 +270,7 @@ fn handle_buttons(
                 }
                 MenuAction::Quit => {
                     println!("Quit button clicked!");
-                    std::process::exit(0);
+                    app_exit.write(AppExit::Success);
                 }
                 MenuAction::CloseSettings => {
                     for entity in &settings_windows {

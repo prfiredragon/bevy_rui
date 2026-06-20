@@ -31,6 +31,7 @@ pub fn spawn_slider<'a>(
         width: Val::Px(200.0),
         height: Val::Px(24.0),
         align_items: AlignItems::Center,
+        border: UiRect::all(Val::Px(2.0)),
         ..default()
     };
     modifier(&mut s);
@@ -47,6 +48,8 @@ pub fn spawn_slider<'a>(
             dragging: false,
             last_cursor_pos: None,
         },
+        crate::focus::Focusable,
+        BorderColor::all(Color::srgb(0.1, 0.1, 0.1)),
     ));
 
     cmds.with_children(|parent| {
@@ -110,7 +113,11 @@ pub fn spawn_slider<'a>(
 pub fn handle_slider_interaction(
     mouse: Res<ButtonInput<MouseButton>>,
     q_window: Query<&Window, With<bevy::window::PrimaryWindow>>,
-    mut q_slider: Query<(&mut RuiSlider, &Interaction, &ComputedNode)>,
+    focus: Res<bevy::input_focus::InputFocus>,
+    bindings: Res<crate::navigation::RuiNavigationBindings>,
+    keys: Res<ButtonInput<KeyCode>>,
+    gamepads: Query<&Gamepad>,
+    mut q_slider: Query<(Entity, &mut RuiSlider, &Interaction, &ComputedNode, &mut BorderColor)>,
     mut q_handle: Query<(&mut Node, &RuiSliderHandle)>,
     mut q_fill: Query<(&mut Node, &RuiSliderFill), Without<RuiSliderHandle>>,
 ) {
@@ -120,7 +127,14 @@ pub fn handle_slider_interaction(
 
     let cursor_pos = q_window.iter().next().and_then(|w| w.cursor_position());
 
-    for (mut slider, interaction, computed) in &mut q_slider {
+    for (entity, mut slider, interaction, computed, mut border) in &mut q_slider {
+        let is_focused = focus.0 == Some(entity);
+        if is_focused {
+            *border = BorderColor::all(Color::srgb(0.4, 0.6, 1.0));
+        } else {
+            *border = BorderColor::all(Color::srgb(0.1, 0.1, 0.1));
+        }
+
         let is_hovered = *interaction == Interaction::Hovered || *interaction == Interaction::Pressed;
 
         if just_released {
@@ -131,6 +145,21 @@ pub fn handle_slider_interaction(
         if just_pressed && is_hovered {
             slider.dragging = true;
             slider.last_cursor_pos = cursor_pos;
+        }
+
+        if is_focused {
+            let mut move_x = 0.0;
+            if crate::navigation::check_keys(&keys, &bindings.left_keys) || crate::navigation::check_buttons(&bindings.left_buttons, &gamepads) {
+                move_x -= 1.0;
+            }
+            if crate::navigation::check_keys(&keys, &bindings.right_keys) || crate::navigation::check_buttons(&bindings.right_buttons, &gamepads) {
+                move_x += 1.0;
+            }
+            if move_x != 0.0 {
+                let range = slider.max - slider.min;
+                // Move 5% per press
+                slider.value = (slider.value + move_x * range * 0.05).clamp(slider.min, slider.max);
+            }
         }
 
         if slider.dragging && pressed {
@@ -148,7 +177,7 @@ pub fn handle_slider_interaction(
     }
 
     for (mut node, handle) in &mut q_handle {
-        if let Ok((slider, _, computed)) = q_slider.get(handle.slider_entity) {
+        if let Ok((_, slider, _, computed, _)) = q_slider.get(handle.slider_entity) {
             let pct = (slider.value - slider.min) / (slider.max - slider.min).max(0.0001);
             let size_x = computed.size().x;
             if size_x > 0.0 {
@@ -159,7 +188,7 @@ pub fn handle_slider_interaction(
     }
 
     for (mut node, fill) in &mut q_fill {
-        if let Ok((slider, _, _)) = q_slider.get(fill.slider_entity) {
+        if let Ok((_, slider, _, _, _)) = q_slider.get(fill.slider_entity) {
             let pct = (slider.value - slider.min) / (slider.max - slider.min).max(0.0001);
             node.width = Val::Percent(pct * 100.0);
         }

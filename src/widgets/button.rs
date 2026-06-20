@@ -38,48 +38,49 @@ pub fn spawn_button<'a>(
         Pickable::default(),
         ImageNode::default(),
         crate::theme::RuiThemeElement::Button,
+        crate::focus::Focusable,
     ));
     cmds.with_children(children);
     cmds
 }
 
 pub fn handle_button_colors(
-    mut query: Query<(&Interaction, &mut ImageNode, Option<&crate::theme::RuiThemeElement>, Option<&RuiButtonStateColors>), Changed<Interaction>>,
+    mut query: Query<(Entity, &Interaction, &mut ImageNode, Option<&crate::theme::RuiThemeElement>, Option<&RuiButtonStateColors>)>,
     theme: Res<crate::theme::RuiTheme>,
+    input_focus: Res<bevy::input_focus::InputFocus>,
 ) {
-    for (interaction, mut image_node, theme_element, state_colors) in &mut query {
+    let _focus_changed = input_focus.is_changed();
+    
+    for (entity, interaction, mut image_node, theme_element, state_colors) in &mut query {
+        let _interaction_changed = true; // In a real scenario we'd track this via a local system parameter or ChangeTrackers, but checking color/image equality is cheap enough
+        
+        let is_focused = input_focus.0 == Some(entity);
+        let is_pressed = *interaction == Interaction::Pressed;
+        let is_hovered = *interaction == Interaction::Hovered || (is_focused && !is_pressed);
+
         if let Some(colors) = state_colors {
-            match *interaction { 
-                Interaction::Pressed => { image_node.color = colors.pressed; }
-                Interaction::Hovered => { image_node.color = colors.hovered; }
-                Interaction::None => { image_node.color = colors.normal; }
+            let target_color = if is_pressed { colors.pressed }
+            else if is_hovered { colors.hovered }
+            else { colors.normal };
+            
+            if image_node.color != target_color {
+                image_node.color = target_color;
             }
         } else if let Some(crate::theme::RuiThemeElement::Button) = theme_element {
-            match *interaction {
-                Interaction::Pressed => {
-                    if let Some(ref img) = theme.image_button_pressed {
-                        image_node.image = img.clone();
-                        image_node.color = Color::WHITE;
-                    } else {
-                        image_node.color = theme.color_button_pressed;
-                    }
-                }
-                Interaction::Hovered => {
-                    if let Some(ref img) = theme.image_button_hover {
-                        image_node.image = img.clone();
-                        image_node.color = Color::WHITE;
-                    } else {
-                        image_node.color = theme.color_button_hover;
-                    }
-                }
-                Interaction::None => {
-                    if let Some(ref img) = theme.image_button_normal {
-                        image_node.image = img.clone();
-                        image_node.color = Color::WHITE;
-                    } else {
-                        image_node.color = theme.color_button_normal;
-                    }
-                }
+            let (target_color, target_image) = if is_pressed {
+                if let Some(ref img) = theme.image_button_pressed { (Color::WHITE, Some(img.clone())) }
+                else { (theme.color_button_pressed, None) }
+            } else if is_hovered {
+                if let Some(ref img) = theme.image_button_hover { (Color::WHITE, Some(img.clone())) }
+                else { (theme.color_button_hover, None) }
+            } else {
+                if let Some(ref img) = theme.image_button_normal { (Color::WHITE, Some(img.clone())) }
+                else { (theme.color_button_normal, None) }
+            };
+
+            if image_node.color != target_color { image_node.color = target_color; }
+            if let Some(img) = target_image {
+                if image_node.image != img { image_node.image = img; }
             }
         }
     }

@@ -30,6 +30,7 @@ pub fn spawn_accordion<'a>(
                     ..default()
                 },
                 Button,
+                crate::focus::Focusable,
                 ImageNode::solid_color(Color::srgb(0.2, 0.2, 0.2)),
                 RuiButtonStateColors::default(),
             )).with_children(|header| {

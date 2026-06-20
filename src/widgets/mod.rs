@@ -168,6 +168,7 @@ impl Plugin for RuiWidgets {
             handle_window_drag,
             handle_window_close_clicks,
             handle_window_focus,
+            handle_new_windows,
             slider::handle_slider_interaction,
         ));
 
@@ -181,7 +182,7 @@ impl Plugin for RuiWidgets {
             handle_textbox_input,
             handle_textbox_scroll,
             update_textbox_visuals,
-            handle_textbox_clicks.after(crate::focus::handle_focus_clicks),
+            handle_textbox_clicks.after(crate::focus::sync_mouse_to_focus),
         ));
 
         app.add_systems(Update, (

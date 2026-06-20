@@ -4,7 +4,8 @@ use bevy::input::ButtonState;
 use bevy::ui::RelativeCursorPosition;
 use bevy::text::TextLayoutInfo;
 
-use crate::focus::{RuiFocus, Focusable};
+
+use bevy::input_focus::InputFocus;
 use crate::widgets::{ RuiClipboard};
 use crate::widgets::scrollview::{RuiVerticalScrollbar, RuiHorizontalScrollbar};
 
@@ -104,12 +105,12 @@ pub fn spawn_textbox<'a>(
         let mut cmds = parent_cmd.spawn((
             s,
             Button,
+            crate::focus::Focusable,
             bevy::ui::FocusPolicy::Block,
             Pickable::default(),
             ImageNode::default(),
             crate::theme::RuiThemeElement::TextboxBg,
             BorderColor::all(Color::srgb(0.051, 0.051, 0.051)),
-            Focusable,
             RelativeCursorPosition::default(),
             RuiTextBox { placeholder: placeholder.to_string(), ..default() }
         ));
@@ -206,11 +207,11 @@ pub fn spawn_multiline_textbox<'a>(
 pub fn handle_textbox_input(
     mut events: MessageReader<KeyboardInput>,
     keys: Res<ButtonInput<KeyCode>>,
-    focus: Res<RuiFocus>,
+    focus: Res<InputFocus>,
     mut query: Query<&mut RuiTextBox>,
     mut clipboard: NonSendMut<RuiClipboard>,
 ) {
-    let Some(focused_entity) = focus.entity else { return };
+    let Some(focused_entity) = focus.0 else { return };
     let Ok(mut textbox) = query.get_mut(focused_entity) else { return };
 
     let ctrl = keys.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight, KeyCode::SuperLeft, KeyCode::SuperRight]);
@@ -456,7 +457,7 @@ pub fn handle_textbox_scroll(
 
 pub fn update_textbox_visuals(
     time: Res<Time>,
-    focus: Res<RuiFocus>,
+    focus: Res<InputFocus>,
     mut textbox_query: Query<(Entity, &RelativeCursorPosition, &mut RuiTextBox, &mut BorderColor, &ComputedNode, &Children)>,
     mut text_query: Query<(&mut Text, Option<&TextLayoutInfo>, &mut Node, Option<&mut bevy::text::TextLayout>, Option<&TextFont>), (With<RuiTextBoxText>, Without<RuiCursor>, Without<RuiSelectionHighlight>, Without<RuiVerticalScrollbar>, Without<RuiHorizontalScrollbar>)>,
     mut cursor_query: Query<(&mut Node, &mut Visibility), (With<RuiCursor>, Without<RuiTextBoxText>, Without<RuiSelectionHighlight>, Without<RuiVerticalScrollbar>, Without<RuiHorizontalScrollbar>)>,
@@ -465,7 +466,7 @@ pub fn update_textbox_visuals(
     mut h_scroll_query: Query<(&mut Node, &mut Visibility), (With<RuiHorizontalScrollbar>, Without<RuiTextBoxText>, Without<RuiCursor>, Without<RuiSelectionHighlight>, Without<RuiVerticalScrollbar>)>,
 ) {
     for (entity, rel_pos, mut textbox, mut border, computed, children) in &mut textbox_query {
-        let is_focused = focus.entity == Some(entity);
+        let is_focused = focus.0 == Some(entity);
         let show_scrollbars = rel_pos.cursor_over() || textbox.dragging_v_scroll || textbox.dragging_h_scroll;
 
         if is_focused {
@@ -614,11 +615,11 @@ pub fn update_textbox_visuals(
 
 pub fn handle_textbox_clicks(
     mouse: Res<ButtonInput<MouseButton>>,
-    focus: Res<RuiFocus>,
+    focus: Res<InputFocus>,
     mut textbox_query: Query<(Entity, &RelativeCursorPosition, &Interaction, &ComputedNode, &Children, &mut RuiTextBox)>,
     text_query: Query<(&TextLayoutInfo, Option<&TextFont>), With<RuiTextBoxText>>,
 ) {
-    let Some(focused_entity) = focus.entity else { return; };
+    let Some(focused_entity) = focus.0 else { return; };
     if let Ok((_, rel_pos, interaction, parent_comp, children, mut textbox)) = textbox_query.get_mut(focused_entity) {
         if !mouse.pressed(MouseButton::Left) { textbox.dragging_v_scroll = false; textbox.dragging_h_scroll = false; return; }
         if let Some(pos) = rel_pos.normalized {

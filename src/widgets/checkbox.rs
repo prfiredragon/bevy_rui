@@ -31,6 +31,7 @@ pub fn spawn_checkbox<'a>(
         let mut cmds = parent_cmd.spawn((
             s,
             Button,
+            crate::focus::Focusable,
             bevy::ui::FocusPolicy::Block,
             Pickable::default(),
             colors,
