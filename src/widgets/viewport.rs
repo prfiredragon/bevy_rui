@@ -69,8 +69,8 @@ pub fn update_rui_viewports(
         );
 
         // Debug prints to trace the viewport values
-        eprintln!("UI Viewport: node size (physical)={:?}, pos (center)={:?} -> rect=({}, {}, {}, {})", 
-            size, pos, left, top, physical_size.x, physical_size.y);
+        /* eprintln!("UI Viewport: node size (physical)={:?}, pos (center)={:?} -> rect=({}, {}, {}, {})", 
+            size, pos, left, top, physical_size.x, physical_size.y); */
 
         // Agregamos a los viewports deseados
         desired_viewports.insert(viewport.camera_entity, BevyViewport {
