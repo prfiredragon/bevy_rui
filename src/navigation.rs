@@ -1,4 +1,4 @@
-use bevy::{input_focus::InputFocus, prelude::*};
+use bevy::{input_focus::{InputFocus, FocusCause}, prelude::*};
 use bevy::ui::auto_directional_navigation::AutoDirectionalNavigator;
 use bevy::math::CompassOctant;
 
@@ -147,7 +147,7 @@ pub fn navigate_ui_system(
     if let Some(direction) = maybe_direction {
         if navigator.input_focus().is_none() {
             if let Some(entity) = navigable.iter().next() {
-                navigator.manual_directional_navigation.focus.set(entity);
+                navigator.manual_directional_navigation.focus.set(entity, FocusCause::Navigated);
                 *last_nav_time = now;
             }
         } else {
@@ -168,7 +168,7 @@ pub fn trigger_ui_click_system(
 ) {
     if !config.enabled { return; }
     
-    let Some(focused_entity) = input_focus.0 else { return; };
+    let Some(focused_entity) = input_focus.get() else { return; };
 
     if check_keys(&keys, &bindings.accept_keys) || check_buttons(&bindings.accept_buttons, &gamepads) {
         click_events.write(RuiClickEvent { entity: focused_entity });

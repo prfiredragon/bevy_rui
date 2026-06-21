@@ -36,7 +36,7 @@ pub fn spawn_button<'a>(
         Button,
         bevy::ui::FocusPolicy::Block,
         Pickable::default(),
-        ImageNode::default(),
+        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::default() },
         crate::theme::RuiThemeElement::Button,
         crate::focus::Focusable,
     ));
@@ -54,7 +54,7 @@ pub fn handle_button_colors(
     for (entity, interaction, mut image_node, theme_element, state_colors) in &mut query {
         let _interaction_changed = true; // In a real scenario we'd track this via a local system parameter or ChangeTrackers, but checking color/image equality is cheap enough
         
-        let is_focused = input_focus.0 == Some(entity);
+        let is_focused = input_focus.get() == Some(entity);
         let is_pressed = *interaction == Interaction::Pressed;
         let is_hovered = *interaction == Interaction::Hovered || (is_focused && !is_pressed);
 

@@ -47,8 +47,8 @@ pub fn apply_rui_default_font(
 ) {
     if let Some(font_res) = default_font {
         for mut text_font in &mut query {
-            if text_font.font == Handle::default() {
-                text_font.font = font_res.0.clone();
+            if text_font.font == bevy::prelude::FontSource::Handle(Handle::default()) {
+                text_font.font = bevy::prelude::FontSource::Handle(font_res.0.clone());
             }
         }
     }
@@ -157,7 +157,7 @@ pub struct RuiWidgets;
 
 impl Plugin for RuiWidgets {
     fn build(&self, app: &mut App) {
-        app.init_non_send_resource::<RuiClipboard>();
+        app.init_non_send::<RuiClipboard>();
         app.init_resource::<crate::theme::RuiTheme>();
         app.add_systems(Startup, color_picker::setup_color_picker_images);
         

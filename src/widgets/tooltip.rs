@@ -39,7 +39,7 @@ impl TooltipExt for EntityCommands<'_> {
                     border: UiRect::all(Val::Px(2.0)),
                     ..default()
                 },
-                ImageNode::solid_color(bg_color),
+                ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(bg_color) },
                 BorderColor::all(border_color),
                 GlobalZIndex(1000), // Encima de todo
                 RuiTooltipMarker,
@@ -48,7 +48,7 @@ impl TooltipExt for EntityCommands<'_> {
                 Visibility::default(),
             )).with_child((
                 Text::new(text_content.clone()),
-                TextFont { font_size: 14.0, ..default() },
+                TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() },
                 TextColor(Color::WHITE),
             ));
         });

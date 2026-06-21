@@ -35,7 +35,7 @@ pub fn spawn_checkbox<'a>(
             bevy::ui::FocusPolicy::Block,
             Pickable::default(),
             colors,
-            ImageNode::solid_color(Color::NONE),
+            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::NONE) },
         ));
 
         let mut checkmark_entity = None;
@@ -48,7 +48,7 @@ pub fn spawn_checkbox<'a>(
                     margin: UiRect::right(Val::Px(8.0)), ..default()
                 },
                 BorderColor::all(Color::srgb(0.5, 0.5, 0.5)),
-                ImageNode::solid_color(Color::srgb(0.1, 0.1, 0.1)),
+                ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.1, 0.1, 0.1)) },
             )).with_children(|box_parent| {
                 checkmark_entity = Some(box_parent.spawn((
                     Node {
@@ -56,11 +56,11 @@ pub fn spawn_checkbox<'a>(
                         height: Val::Px(12.0),
                         ..default()
                     },
-                    ImageNode::solid_color(Color::WHITE),
+                    ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::WHITE) },
                     if checked { Visibility::Inherited } else { Visibility::Hidden },
                 )).id());
             });
-            parent.spawn((Text::new(label_text), TextFont { font_size: 18.0, ..default() }, TextColor(Color::WHITE)));
+            parent.spawn((Text::new(label_text), TextFont { font_size: bevy::prelude::FontSize::Px(18.0), ..default() }, TextColor(Color::WHITE)));
         });
 
         cmds.insert(RuiCheckbox { checked, checkmark_entity: checkmark_entity.unwrap() });

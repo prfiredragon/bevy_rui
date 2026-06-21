@@ -93,7 +93,7 @@ fn setup(
 
     // 3. Escena 3D (Luz y Cubo Interactivo)
     commands.spawn((
-        DirectionalLight { shadows_enabled: true, ..default() },
+        DirectionalLight { shadow_maps_enabled: true, ..default() },
         Transform::from_xyz(-4.0, 8.0, -4.0), //.looking_at(Vec3::ZERO, Vec3::Y),
     ));
 

@@ -43,7 +43,7 @@ pub fn spawn_window<'a>(
 
     let mut cmds = parent_cmd.spawn((
         s,
-        ImageNode::default(),
+        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::default() },
         crate::theme::RuiThemeElement::Panel,
         ZIndex(100),
         Interaction::None,
@@ -57,7 +57,7 @@ pub fn spawn_window<'a>(
         let window_id = parent.target_entity();
         parent.spawn((
             Node { display: Display::Flex, align_self: AlignSelf::Stretch, height: Val::Px(35.0), padding: UiRect::all(Val::Px(6.0)), justify_content: JustifyContent::SpaceBetween, align_items: AlignItems::Center, ..default() },
-            ImageNode::default(),
+            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::default() },
             crate::theme::RuiThemeElement::WindowHeader,
             Interaction::None, Pickable::default(), RelativeCursorPosition::default(),
             RuiWindowHeader { window_entity: window_id, dragging: false, drag_offset: Vec2::ZERO }
@@ -67,11 +67,11 @@ pub fn spawn_window<'a>(
                 header.spawn((
                     Node { display: Display::Flex, width: Val::Px(24.0), height: Val::Px(24.0), justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
                     Button, 
-                    ImageNode::solid_color(Color::srgb(0.8, 0.2, 0.2)),
+                    ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.8, 0.2, 0.2)) },
                     RuiButtonStateColors { normal: Color::srgb(0.8, 0.2, 0.2), hovered: Color::srgb(0.9, 0.3, 0.3), pressed: Color::srgb(0.6, 0.1, 0.1) },
                     RuiWindowCloseButton { window_entity: window_id },
                 )).with_children(|btn| {
-                    btn.spawn((Text::new("X"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::WHITE)));
+                    btn.spawn((Text::new("X"), TextFont { font_size: bevy::prelude::FontSize::Px(16.0), ..default() }, TextColor(Color::WHITE)));
                 });
             }
         });

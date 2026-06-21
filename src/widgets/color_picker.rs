@@ -170,7 +170,7 @@ pub fn spawn_color_picker<'a>(
     cmds.with_children(|p| {
         preview_id = p.spawn((
             Node { width: Val::Percent(100.0), height: Val::Percent(100.0), ..default() },
-            ImageNode::solid_color(initial_color),
+            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(initial_color) },
         )).id();
     });
     
@@ -207,7 +207,7 @@ pub fn spawn_color_picker<'a>(
                 border: UiRect::all(Val::Px(1.0)), 
                 ..default() 
             },
-            ImageNode::solid_color(Color::srgb(0.15, 0.15, 0.15)), 
+            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.15, 0.15, 0.15)) }, 
             BorderColor::all(Color::srgb(0.3, 0.3, 0.3)), 
             ZIndex(500), 
             GlobalZIndex(100),
@@ -240,18 +240,18 @@ pub fn spawn_color_picker<'a>(
                     // Base color layer (Hue)
                     sv_base_image_entity = sv_box.spawn((
                         Node { position_type: PositionType::Absolute, width: Val::Percent(100.0), height: Val::Percent(100.0), ..default() },
-                        ImageNode::solid_color(pure_hue),
+                        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(pure_hue) },
                     )).id();
                     // White horizontal gradient (Saturation)
                     sv_box.spawn((
                         Node { position_type: PositionType::Absolute, width: Val::Percent(100.0), height: Val::Percent(100.0), ..default() },
-                        ImageNode::default(),
+                        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::default() },
                         RuiColorPickerSvWhite,
                     ));
                     // Black vertical gradient (Value)
                     sv_box.spawn((
                         Node { position_type: PositionType::Absolute, width: Val::Percent(100.0), height: Val::Percent(100.0), ..default() },
-                        ImageNode::default(),
+                        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::default() },
                         RuiColorPickerSvBlack,
                     ));
                     // Cursor indicator
@@ -268,7 +268,7 @@ pub fn spawn_color_picker<'a>(
                             ..default()
                         },
                         BorderColor::all(Color::WHITE),
-                        ImageNode::solid_color(Color::BLACK),
+                        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::BLACK) },
                     )).id();
                 }).id();
                 
@@ -288,7 +288,7 @@ pub fn spawn_color_picker<'a>(
                     // Hue gradient image
                     hue_box.spawn((
                         Node { position_type: PositionType::Absolute, width: Val::Percent(100.0), height: Val::Percent(100.0), ..default() },
-                        ImageNode::default(),
+                        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::default() },
                         RuiColorPickerHueBar,
                     ));
                     // Hue Cursor
@@ -303,7 +303,7 @@ pub fn spawn_color_picker<'a>(
                             ..default()
                         },
                         BorderColor::all(Color::BLACK),
-                        ImageNode::solid_color(Color::WHITE),
+                        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::WHITE) },
                     )).id();
                 }).id();
             });

@@ -91,12 +91,12 @@ pub fn spawn_file_dialog<'a>(
             }).insert(DialogButtonAction::UpDir(dialog_id));
             
             top_p.button(|s| { s.width = Val::Px(40.0); s.height = Val::Px(30.0); s.margin = UiRect::left(Val::Px(5.0)); }, |b| {
-                b.label("+📁", |font,_|{ font.font_size = 14.0; }).insert(RuiThemeElement::ButtonText);
+                b.label("+📁", |font,_|{ font.font_size = bevy::prelude::FontSize::Px(14.0); }).insert(RuiThemeElement::ButtonText);
             }).insert(DialogButtonAction::CreateDir(dialog_id));
             
             top_p.spawn((
                 Text::new(start_dir.display().to_string()),
-                TextFont { font_size: 16.0, ..default() },
+                TextFont { font_size: bevy::prelude::FontSize::Px(16.0), ..default() },
                 TextColor(Color::WHITE),
                 Node { margin: UiRect::left(Val::Px(10.0)), overflow: Overflow::clip(), flex_shrink: 1.0, min_width: Val::Px(0.0), ..default() }
             )).insert(RuiFilePathText(dialog_id));
@@ -194,7 +194,7 @@ fn spawn_create_dir_modal(commands: &mut Commands, dialog_entity: Entity) -> Ent
                 align_items: AlignItems::Center,
                 ..default()
             },
-            ImageNode::solid_color(Color::srgba(0.0, 0.0, 0.0, 0.7)),
+            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgba(0.0, 0.0, 0.0, 0.7)) },
             ZIndex(1000), // Ensures it stays on top of everything inside the window
             Interaction::None,
             bevy::ui::FocusPolicy::Block, // Block clicks from passing through
@@ -217,7 +217,7 @@ fn spawn_create_dir_modal(commands: &mut Commands, dialog_entity: Entity) -> Ent
             //s.align_items = AlignItems::Center;
         }, |panel| {
             
-            panel.label("Crear Nuevo Directorio", |font, _| { font.font_size = 18.0;});
+            panel.label("Crear Nuevo Directorio", |font, _| { font.font_size = bevy::prelude::FontSize::Px(18.0);});
             
             textbox_id = panel.textbox("Nombre de la carpeta", |s, _, _| {
                 s.width = Val::Percent(80.0);
@@ -250,7 +250,7 @@ fn spawn_create_dir_modal(commands: &mut Commands, dialog_entity: Entity) -> Ent
             Interaction::None,
             bevy::ui::FocusPolicy::Block,
             Pickable::default(),
-            ImageNode::default(),
+            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::default() },
         ));
     });
     
@@ -368,7 +368,7 @@ pub fn update_file_list_ui(
                             Node { width: Val::Px(20.0), height: Val::Px(20.0), margin: UiRect::right(Val::Px(8.0)), ..default() },
                         ));
                         // Text
-                        b.spawn((Text::new(name), TextFont { font_size: 16.0, ..default() }, TextColor(Color::WHITE)));
+                        b.spawn((Text::new(name), TextFont { font_size: bevy::prelude::FontSize::Px(16.0), ..default() }, TextColor(Color::WHITE)));
                     }).insert(RuiFileItem { path, is_dir, dialog_entity });
                 }
             });
