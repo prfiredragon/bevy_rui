@@ -314,9 +314,10 @@ pub fn update_file_list_ui(
                             break;
                         }
                         
-                        let clean_ext = ext.replace("*.", "").replace(".", "");
+                        let clean_ext = ext.strip_prefix("*.").unwrap_or(ext);
+                        let suffix = format!(".{}", clean_ext.trim_start_matches('.'));
                         let name_lower = name.to_lowercase();
-                        if name_lower.ends_with(&format!(".{}", clean_ext.to_lowercase())) {
+                        if name_lower.ends_with(&suffix.to_lowercase()) {
                             matches = true;
                             break;
                         }
@@ -481,8 +482,8 @@ pub fn handle_dialog_buttons(
                                         if let Some(filter) = dialog.filters.iter().find(|f| &f.name == selected_filter_name) {
                                             if !filter.extensions.is_empty() && !filter.extensions.contains(&"*".to_string()) && !filter.extensions.contains(&"*.*".to_string()) {
                                                 let ext = &filter.extensions[0];
-                                                let clean_ext = ext.replace("*.", "").replace(".", "");
-                                                let suffix = format!(".{}", clean_ext);
+                                                let clean_ext = ext.strip_prefix("*.").unwrap_or(ext);
+                                                let suffix = format!(".{}", clean_ext.trim_start_matches('.'));
                                                 if !file_name.to_lowercase().ends_with(&suffix.to_lowercase()) {
                                                     file_name.push_str(&suffix);
                                                 }
