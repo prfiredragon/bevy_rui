@@ -266,7 +266,7 @@ fn setup(
         ui.window("Caja de Herramientas", true, |s| {
             s.left = Val::Px(50.0);
             s.top = Val::Px(50.0);
-        }, |win| {
+        }, |win, _| {
             win.label("¡Soy una ventana flotante libre!", |_,_| {});
             win.button(|s| { s.margin = UiRect::top(Val::Px(10.0)); }, |btn| {
                 btn.label("Aceptar", |_,_| {});
@@ -277,7 +277,7 @@ fn setup(
         ui.window("Caja de Herramientas 2", false, |s| {
             s.left = Val::Px(400.0);
             s.top = Val::Px(150.0);
-        }, |win| {
+        }, |win, _| {
             win.label("¡Soy una ventana flotante libre!", |_,_| {});
             win.button(|s| { s.margin = UiRect::top(Val::Px(10.0)); }, |btn| {
                 btn.label("Aceptar", |_,_| {});

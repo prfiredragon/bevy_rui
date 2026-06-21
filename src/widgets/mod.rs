@@ -5,6 +5,7 @@ pub mod button;
 pub mod checkbox;
 pub mod clipboard;
 pub mod dropdown;
+pub mod file_dialog;
 pub mod label;
 pub mod layout;
 pub mod menu;
@@ -60,7 +61,7 @@ pub trait RuiBuilderExt {
     fn multiline_textbox(&mut self, placeholder: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'_>;
     fn scrollview(&mut self, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_>;
     fn accordion(&mut self, title: &str, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_>;
-    fn window(&mut self, title: &str, closable: bool, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_>;
+    fn window(&mut self, title: &str, closable: bool, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands, Entity)) -> EntityCommands<'_>;
     fn dropdown(&mut self, default_value: &str, options: &[&str], modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_>;
     fn checkbox(&mut self, label_text: &str, checked: bool, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_>;
     fn menu_bar(&mut self, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_>;
@@ -100,7 +101,7 @@ impl RuiBuilderExt for ChildSpawnerCommands<'_> {
     fn accordion(&mut self, title: &str, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_> {
         accordion::spawn_accordion(self, title, modifier, children)
     }
-    fn window(&mut self, title: &str, closable: bool, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_> {
+    fn window(&mut self, title: &str, closable: bool, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands, Entity)) -> EntityCommands<'_> {
         windows::spawn_window(self, title, closable, modifier, children)
     }
     fn dropdown(&mut self, default_value: &str, options: &[&str], modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_> {
@@ -165,12 +166,22 @@ impl Plugin for RuiWidgets {
             handle_tab_close_clicks,
             handle_resizer_drag,
             handle_resizer_collapse_clicks,
+        ));
+
+        app.add_systems(Update, (
             handle_window_drag,
             handle_window_close_clicks,
             handle_window_focus,
             handle_new_windows,
             slider::handle_slider_interaction,
+            file_dialog::update_file_list_ui,
+            file_dialog::handle_file_clicks,
+            file_dialog::handle_dialog_buttons,
         ));
+
+        // Eventos
+        app.add_message::<file_dialog::RuiFileSelected>();
+        app.add_message::<file_dialog::RuiFileCanceled>();
 
         app.add_systems(Update, (
             handle_scrollview_scroll,

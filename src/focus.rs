@@ -113,7 +113,7 @@ pub fn manage_focus_scopes(
     mut commands: Commands,
     mut active_scope: ResMut<RuiActiveScope>,
     mut input_focus: ResMut<InputFocus>,
-    focusable_query: Query<(Entity, Option<&AutoDirectionalNavigation>), With<Focusable>>,
+    focusable_query: Query<(Entity, Option<&AutoDirectionalNavigation>), (With<Focusable>, Without<crate::widgets::textbox::RuiTextBox>)>,
     new_focusables: Query<Entity, Added<Focusable>>,
     parents: Query<&ChildOf>,
     windows: Query<Entity, With<crate::widgets::windows::RuiWindow>>,

@@ -24,7 +24,7 @@ pub fn spawn_window<'a>(
     title: &str,
     closable: bool,
     modifier: impl FnOnce(&mut Node),
-    children: impl FnOnce(&mut ChildSpawnerCommands),
+    children: impl FnOnce(&mut ChildSpawnerCommands, Entity),
 ) -> EntityCommands<'a> {
     let mut s = Node {
         display: Display::Flex,
@@ -49,6 +49,7 @@ pub fn spawn_window<'a>(
         Interaction::None,
         Pickable::default(),
         bevy::ui::FocusPolicy::Block,
+        BorderColor::all(Color::BLACK),
         RuiWindow,
     ));
 
@@ -77,7 +78,7 @@ pub fn spawn_window<'a>(
         parent.spawn((
             Node { display: Display::Flex, flex_direction: FlexDirection::Column, flex_grow: 1.0, overflow: Overflow::clip(), width: Val::Percent(100.0), padding: UiRect::all(Val::Px(10.0)), ..default() },
             Interaction::None, bevy::ui::FocusPolicy::Block, Pickable::default(),
-        )).with_children(children);
+        )).with_children(|p| children(p, window_id));
     });
     cmds
 }

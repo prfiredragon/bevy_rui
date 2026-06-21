@@ -116,7 +116,7 @@ fn setup(
             s.width = Val::Px(250.0);
             s.left = Val::Auto; // Center horizontally
             s.top = Val::Auto;  // Center vertically
-        }, |win| {
+        }, |win, _| {
             win.button(|s| {
                 s.width = Val::Percent(100.0);
                 s.margin = UiRect::bottom(Val::Px(10.0));
@@ -182,7 +182,7 @@ fn handle_buttons(
                         rui.window("Settings", false, |s| {
                             s.width = Val::Px(500.0);
                             s.height = Val::Px(400.0);
-                        }, |win| {
+                        }, |win, _| {
                             win.tabs(0, |s| {
                                 s.width = Val::Percent(100.0);
                                 s.height = Val::Auto;
