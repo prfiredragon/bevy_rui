@@ -136,7 +136,7 @@ fn setup(
             });
 
             // --- FILA SUPERIOR (Ocupa el espacio restante por defecto) ---
-            vbox.hbox(|s| { s.height = Val::Percent(80.0); }, |top_hbox| {
+            vbox.hbox(|s| { s.flex_grow = 1.0; }, |top_hbox| {
                 
                 // Dentro de esta primera fila de 80%, colocamos 3 columnas verticales (VBox)
                 
@@ -238,7 +238,7 @@ fn setup(
             });
 
             // --- FILA INFERIOR (Ocupa el 20% del alto por defecto) ---
-            vbox.hbox(|s| { s.flex_grow = 1.0; }, |bottom_hbox| {
+            vbox.hbox(|s| { s.height = Val::Percent(20.0); s.flex_shrink = 0.0; }, |bottom_hbox| {
                 
                 // Consola 1: Editable
                 bottom_hbox.multiline_textbox("Consola Editable...", |s, font, _color| {
