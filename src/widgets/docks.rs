@@ -16,6 +16,8 @@ pub fn spawn_dock_split_horizontal<'a>(
         flex_direction: FlexDirection::Row,
         width: Val::Percent(100.0),
         height: Val::Percent(100.0),
+        min_width: Val::Px(0.0),
+        min_height: Val::Px(0.0),
         flex_grow: 1.0,
         ..default()
     };
@@ -30,6 +32,8 @@ pub fn spawn_dock_split_horizontal<'a>(
                 flex_direction: FlexDirection::Column,
                 width: left_width,
                 height: Val::Percent(100.0),
+                min_width: Val::Px(0.0),
+                min_height: Val::Px(0.0),
                 border: UiRect::right(Val::Px(1.0)),
                 ..default()
             },
@@ -45,6 +49,8 @@ pub fn spawn_dock_split_horizontal<'a>(
             flex_direction: FlexDirection::Column,
             width: Val::Auto,
             height: Val::Percent(100.0),
+            min_width: Val::Px(0.0),
+            min_height: Val::Px(0.0),
             flex_grow: 1.0,
             ..default()
         }).with_children(right_children);
@@ -67,6 +73,8 @@ pub fn spawn_dock_split_vertical<'a>(
         flex_direction: FlexDirection::Column,
         width: Val::Percent(100.0),
         height: Val::Percent(100.0),
+        min_width: Val::Px(0.0),
+        min_height: Val::Px(0.0),
         flex_grow: 1.0,
         ..default()
     };
@@ -81,6 +89,8 @@ pub fn spawn_dock_split_vertical<'a>(
                 flex_direction: FlexDirection::Column,
                 width: Val::Percent(100.0),
                 height: top_height,
+                min_width: Val::Px(0.0),
+                min_height: Val::Px(0.0),
                 border: UiRect::bottom(Val::Px(1.0)),
                 ..default()
             },
@@ -96,6 +106,8 @@ pub fn spawn_dock_split_vertical<'a>(
             flex_direction: FlexDirection::Column,
             width: Val::Percent(100.0),
             height: Val::Auto,
+            min_width: Val::Px(0.0),
+            min_height: Val::Px(0.0),
             flex_grow: 1.0,
             ..default()
         }).with_children(bottom_children);

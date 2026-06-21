@@ -27,6 +27,8 @@ pub fn spawn_scrollview<'a>(
             flex_direction: FlexDirection::Column,
             width: Val::Percent(100.0),
             height: Val::Percent(100.0),
+            min_width: Val::Px(0.0),
+            min_height: Val::Px(0.0),
             overflow: Overflow::clip(),
             align_items: AlignItems::FlexStart,
             justify_content: JustifyContent::FlexStart,

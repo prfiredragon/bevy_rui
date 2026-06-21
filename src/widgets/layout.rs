@@ -11,6 +11,8 @@ pub fn spawn_vbox<'a>(
         flex_direction: FlexDirection::Column,
         width: Val::Percent(100.0),
         height: Val::Percent(100.0),
+        min_width: Val::Px(0.0),
+        min_height: Val::Px(0.0),
         ..default()
     };
     modifier(&mut s);
@@ -29,6 +31,8 @@ pub fn spawn_hbox<'a>(
         flex_direction: FlexDirection::Row,
         width: Val::Percent(100.0),
         height: Val::Percent(100.0),
+        min_width: Val::Px(0.0),
+        min_height: Val::Px(0.0),
         ..default()
     };
     modifier(&mut s);
@@ -46,6 +50,8 @@ impl RuiRootBuilderExt for Commands<'_, '_> {
             position_type: PositionType::Absolute,
             left: Val::Px(0.0),
             top: Val::Px(0.0),
+            min_width: Val::Px(0.0),
+            min_height: Val::Px(0.0),
             ..default()
         };
         modifier(&mut s);
