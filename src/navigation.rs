@@ -185,7 +185,9 @@ pub fn simulate_click_visuals_system(
     for ev in click_events.read() {
         if let Ok(mut interaction) = interactions.get_mut(ev.entity) {
             *interaction = Interaction::Pressed;
-            commands.entity(ev.entity).insert(RuiSimulateClick::default());
+            if let Ok(mut e_cmds) = commands.get_entity(ev.entity) {
+                e_cmds.try_insert(RuiSimulateClick::default());
+            }
         }
     }
 

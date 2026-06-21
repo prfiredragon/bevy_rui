@@ -137,9 +137,13 @@ pub fn manage_focus_scopes(
         let in_active = is_in_active_window(entity, &active_scope, &parents, no_windows);
 
         if in_active && auto_nav.is_none() {
-            commands.entity(entity).insert(AutoDirectionalNavigation::default());
+            if let Ok(mut e_cmds) = commands.get_entity(entity) {
+                e_cmds.try_insert(AutoDirectionalNavigation::default());
+            }
         } else if !in_active && auto_nav.is_some() {
-            commands.entity(entity).remove::<AutoDirectionalNavigation>();
+            if let Ok(mut e_cmds) = commands.get_entity(entity) {
+                e_cmds.remove::<AutoDirectionalNavigation>();
+            }
         }
 
         if in_active && scope_changed && input_focus.0.is_none() {
