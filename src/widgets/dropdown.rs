@@ -31,7 +31,13 @@ pub fn spawn_dropdown<'a>(
         let mut cmds = parent_cmd.spawn((s, Button, crate::focus::Focusable, bevy::ui::FocusPolicy::Block, colors.clone(), ImageNode::solid_color(colors.normal)));
         cmds.with_children(|parent| {
             let header_id = parent.target_entity();
-            let text_id = parent.spawn((Text::new(default_value), TextFont::default(), TextColor(Color::WHITE))).id();
+            let text_id = parent.spawn((
+                Text::new(default_value), 
+                TextFont::default(), 
+                TextColor(Color::WHITE),
+                TextLayout::new_with_justify(Justify::Left).with_no_wrap(),
+                Node { overflow: Overflow::clip(), flex_shrink: 1.0, min_width: Val::Px(0.0), ..default() }
+            )).id();
             parent.spawn((Text::new("▼"), TextFont::default(), TextColor(Color::WHITE)));
             let popup_id = parent.commands().spawn((
                 Node { display: Display::None, position_type: PositionType::Absolute, flex_direction: FlexDirection::Column, width: Val::Px(150.0), border: UiRect::all(Val::Px(1.0)), ..default() },
@@ -46,7 +52,13 @@ pub fn spawn_dropdown<'a>(
                         ImageNode::solid_color(Color::srgb(0.15, 0.15, 0.15)),
                         RuiDropdownOption { dropdown_entity: header_id, value: opt.to_string() }
                     )).with_children(|opt_btn| {
-                        opt_btn.spawn((Text::new(*opt), TextFont::default(), TextColor(Color::WHITE)));
+                        opt_btn.spawn((
+                            Text::new(*opt), 
+                            TextFont::default(), 
+                            TextColor(Color::WHITE),
+                            TextLayout::new_with_justify(Justify::Left).with_no_wrap(),
+                            Node { overflow: Overflow::clip(), flex_shrink: 1.0, min_width: Val::Px(0.0), ..default() }
+                        ));
                     });
                 }
             }).id();

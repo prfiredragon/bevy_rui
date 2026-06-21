@@ -225,10 +225,10 @@ pub fn handle_tab_close_clicks(
     for (interaction, close_btn) in &mut interactions {
         if *interaction == Interaction::Pressed {
             for (entity, btn) in &buttons {
-                if btn.container_entity == close_btn.container_entity && btn.tab_index == close_btn.tab_index { commands.entity(entity).despawn(); }
+                if btn.container_entity == close_btn.container_entity && btn.tab_index == close_btn.tab_index { commands.entity(entity).try_despawn(); }
             }
             for (entity, _, content) in &contents {
-                if content.container_entity == close_btn.container_entity && content.tab_index == close_btn.tab_index { commands.entity(entity).despawn(); }
+                if content.container_entity == close_btn.container_entity && content.tab_index == close_btn.tab_index { commands.entity(entity).try_despawn(); }
             }
 
             // Pick new active tab

@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use bevy::window::PresentMode;
 use bevy_rui::*;
-use bevy_rui::widgets::file_dialog::{spawn_file_dialog, FileDialogMode, RuiFileSelected, RuiFileCanceled};
+use bevy_rui::widgets::file_dialog::{spawn_file_dialog, FileDialogMode, RuiFileSelected, RuiFileCanceled, FileFilter};
 use std::env;
 
 #[derive(Component)]
@@ -250,12 +250,18 @@ fn handle_buttons(
             commands.entity(root_entity).with_children(|parent| {
                 let start_path = env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("/")).join("assets");
                 
+                let filters = vec![
+                    FileFilter { name: "All Files (*.*)".to_string(), extensions: vec!["*.*".to_string()] },
+                    FileFilter { name: "Text File (*.txt)".to_string(), extensions: vec!["*.txt".to_string()] },
+                    FileFilter { name: "Tar Archive (*.tar.gz)".to_string(), extensions: vec!["*.tar.gz".to_string()] },
+                ];
+                
                 match trigger {
                     DialogTrigger::Open => {
-                        spawn_file_dialog(parent, "Open File", FileDialogMode::Open, start_path.clone());
+                        spawn_file_dialog(parent, "Open File", FileDialogMode::Open, start_path.clone(), filters.clone());
                     }
                     DialogTrigger::Save => {
-                        spawn_file_dialog(parent, "Save File", FileDialogMode::Save, start_path.clone());
+                        spawn_file_dialog(parent, "Save File", FileDialogMode::Save, start_path.clone(), filters.clone());
                     }
                 }
             });

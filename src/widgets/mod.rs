@@ -177,6 +177,7 @@ impl Plugin for RuiWidgets {
             file_dialog::update_file_list_ui,
             file_dialog::handle_file_clicks,
             file_dialog::handle_dialog_buttons,
+            file_dialog::handle_dropdown_change,
         ));
 
         // Eventos

@@ -56,7 +56,7 @@ impl TooltipExt for EntityCommands<'_> {
         // Evento al salir el ratón: Elimina el tooltip
         self.observe(|_: On<Pointer<Out>>, mut commands: Commands, q: Query<Entity, With<RuiTooltipMarker>>| {
             for entity in &q {
-                commands.entity(entity).despawn();
+                commands.entity(entity).try_despawn();
             }
         });
 

@@ -91,7 +91,7 @@ pub fn handle_window_close_clicks(
     for (interaction, btn) in &query {
         if *interaction == Interaction::Pressed {
             active_scope.remove_window(btn.window_entity);
-            if let Ok(mut entity_cmds) = commands.get_entity(btn.window_entity) { entity_cmds.despawn(); }
+            if let Ok(mut entity_cmds) = commands.get_entity(btn.window_entity) { entity_cmds.try_despawn(); }
         }
     }
 }

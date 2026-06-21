@@ -11,12 +11,19 @@ pub enum FileDialogMode {
     Save,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct FileFilter {
+    pub name: String,
+    pub extensions: Vec<String>,
+}
+
 #[derive(Component)]
 pub struct RuiFileDialog {
     pub mode: FileDialogMode,
     pub current_dir: PathBuf,
     pub selected_file: String,
-    pub allowed_extensions: Vec<String>,
+    pub filters: Vec<FileFilter>,
+    pub filter_dropdown: Option<Entity>,
     pub list_container: Entity,
     pub textbox_entity: Entity,
     pub needs_refresh: bool,
@@ -56,12 +63,14 @@ pub fn spawn_file_dialog<'a>(
     title: &str,
     mode: FileDialogMode,
     start_dir: PathBuf,
+    filters: Vec<FileFilter>,
 ) -> EntityCommands<'a> {
     let mut list_container_entity = Entity::PLACEHOLDER;
     let mut textbox_entity = Entity::PLACEHOLDER;
+    let mut filter_dropdown_entity = None;
     
     let mut window_cmds = parent.window(title, true, |s| {
-        s.width = Val::Px(600.0);
+        s.width = Val::Px(650.0);
         s.height = Val::Px(450.0);
         s.left = Val::Px(200.0);
         s.top = Val::Px(150.0);
@@ -123,10 +132,24 @@ pub fn spawn_file_dialog<'a>(
             justify_content: JustifyContent::SpaceBetween,
             ..default()
         }).with_children(|bot_p| {
-            // File name text box
-            textbox_entity = spawn_textbox(bot_p, "Nombre del archivo o carpeta...", |s, _, _| {
-                s.width = Val::Px(350.0);
-            }).id();
+            bot_p.spawn(Node { display: Display::Flex, flex_direction: FlexDirection::Row, flex_grow: 1.0, align_items: AlignItems::Center, ..default() }).with_children(|left_p| {
+                // File name text box
+                textbox_entity = spawn_textbox(left_p, "Nombre del archivo o carpeta...", |s, _, _| {
+                    s.flex_grow = 1.0;
+                    s.height = Val::Px(30.0);
+                    s.margin = UiRect::right(Val::Px(10.0));
+                }).id();
+                
+                if !filters.is_empty() {
+                    let filter_strings: Vec<String> = filters.iter().map(|f| f.name.clone()).collect();
+                    let str_refs: Vec<&str> = filter_strings.iter().map(|s| s.as_str()).collect();
+                    filter_dropdown_entity = Some(crate::widgets::dropdown::spawn_dropdown(left_p, str_refs[0], &str_refs, |s| {
+                        s.width = Val::Px(200.0);
+                        s.height = Val::Px(30.0);
+                        s.margin = UiRect::right(Val::Px(10.0));
+                    }).id());
+                }
+            });
             
             // Buttons
             bot_p.spawn(Node { display: Display::Flex, flex_direction: FlexDirection::Row, ..default() }).with_children(|btn_p| {
@@ -146,7 +169,8 @@ pub fn spawn_file_dialog<'a>(
         mode,
         current_dir: start_dir.clone(),
         selected_file: String::new(),
-        allowed_extensions: vec![],
+        filters,
+        filter_dropdown: filter_dropdown_entity,
         list_container: list_container_entity,
         textbox_entity,
         needs_refresh: true,
@@ -239,6 +263,8 @@ pub fn update_file_list_ui(
     q_children: Query<&Children>,
     mut q_path_texts: Query<(&RuiFilePathText, &mut Text)>,
     asset_server: Res<AssetServer>,
+    q_dropdowns: Query<&crate::widgets::dropdown::RuiDropdown>,
+    q_texts: Query<&Text, Without<RuiFilePathText>>,
 ) {
     for (dialog_entity, mut dialog) in &mut q_dialogs {
         if !dialog.needs_refresh {
@@ -257,19 +283,49 @@ pub fn update_file_list_ui(
         // Clear old items
         if let Ok(children) = q_children.get(container) {
             for child in children {
-                commands.entity(*child).despawn();
+                commands.entity(*child).try_despawn();
             }
         }
         
+        let mut active_extensions: Vec<String> = vec![];
+        if let Some(dropdown_entity) = dialog.filter_dropdown {
+            if let Ok(dropdown) = q_dropdowns.get(dropdown_entity) {
+                if let Ok(dropdown_text) = q_texts.get(dropdown.text_entity) {
+                    let selected_filter_name = &dropdown_text.0;
+                    if let Some(filter) = dialog.filters.iter().find(|f| &f.name == selected_filter_name) {
+                        active_extensions = filter.extensions.clone();
+                    }
+                }
+            }
+        }
+
         let mut entries = Vec::new();
         if let Ok(read_dir) = std::fs::read_dir(&dialog.current_dir) {
             for entry in read_dir.flatten() {
                 let path = entry.path();
                 let is_dir = path.is_dir();
-                
-                // TODO: filter extensions if not a dir
-                
                 let name = entry.file_name().to_string_lossy().to_string();
+                
+                if !is_dir && !active_extensions.is_empty() {
+                    let mut matches = false;
+                    for ext in &active_extensions {
+                        if ext == "*" || ext == "*.*" {
+                            matches = true;
+                            break;
+                        }
+                        
+                        let clean_ext = ext.replace("*.", "").replace(".", "");
+                        let name_lower = name.to_lowercase();
+                        if name_lower.ends_with(&format!(".{}", clean_ext.to_lowercase())) {
+                            matches = true;
+                            break;
+                        }
+                    }
+                    if !matches {
+                        continue;
+                    }
+                }
+                
                 entries.push((name, path, is_dir));
             }
         }
@@ -356,13 +412,15 @@ pub fn handle_dialog_buttons(
     mut active_scope: ResMut<crate::focus::RuiActiveScope>,
     mut ev_selected: MessageWriter<RuiFileSelected>,
     mut ev_canceled: MessageWriter<RuiFileCanceled>,
+    q_dropdowns: Query<&crate::widgets::dropdown::RuiDropdown>,
+    q_texts: Query<&Text>,
 ) {
     for (interaction, action) in &q_interactions {
         if *interaction == Interaction::Pressed {
             match action {
                 DialogButtonAction::CancelCreateDir(modal_ent) => {
                     active_scope.remove_window(*modal_ent);
-                    commands.entity(*modal_ent).despawn();
+                    commands.entity(*modal_ent).try_despawn();
                     continue;
                 }
                 DialogButtonAction::ConfirmCreateDir(d_ent, modal_ent, txt_ent) => {
@@ -378,7 +436,7 @@ pub fn handle_dialog_buttons(
                         }
                     }
                     active_scope.remove_window(*modal_ent);
-                    commands.entity(*modal_ent).despawn();
+                    commands.entity(*modal_ent).try_despawn();
                     continue;
                 }
                 DialogButtonAction::CreateDir(d_ent) => {
@@ -409,23 +467,57 @@ pub fn handle_dialog_buttons(
                         }
                     }
                     DialogButtonAction::Confirm(_) => {
-                        let file_name = if let Ok(textbox) = q_textboxes.get(dialog.textbox_entity) {
+                        let mut file_name = if let Ok(textbox) = q_textboxes.get(dialog.textbox_entity) {
                             textbox.text.clone()
                         } else {
                             dialog.selected_file.clone()
                         };
                         
                         if !file_name.is_empty() {
+                            if let Some(dropdown_entity) = dialog.filter_dropdown {
+                                if let Ok(dropdown) = q_dropdowns.get(dropdown_entity) {
+                                    if let Ok(dropdown_text) = q_texts.get(dropdown.text_entity) {
+                                        let selected_filter_name = &dropdown_text.0;
+                                        if let Some(filter) = dialog.filters.iter().find(|f| &f.name == selected_filter_name) {
+                                            if !filter.extensions.is_empty() && !filter.extensions.contains(&"*".to_string()) && !filter.extensions.contains(&"*.*".to_string()) {
+                                                let ext = &filter.extensions[0];
+                                                let clean_ext = ext.replace("*.", "").replace(".", "");
+                                                let suffix = format!(".{}", clean_ext);
+                                                if !file_name.to_lowercase().ends_with(&suffix.to_lowercase()) {
+                                                    file_name.push_str(&suffix);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        
                             let path = dialog.current_dir.join(file_name);
                             ev_selected.write(RuiFileSelected { path, mode: dialog.mode });
-                            commands.entity(dialog_entity).despawn();
+                            commands.entity(dialog_entity).try_despawn();
                         }
                     }
                     DialogButtonAction::Cancel(_) => {
                         ev_canceled.write(RuiFileCanceled);
-                        commands.entity(dialog_entity).despawn();
+                        commands.entity(dialog_entity).try_despawn();
                     }
                     _ => {}
+                }
+            }
+        }
+    }
+}
+
+pub fn handle_dropdown_change(
+    mut q_dialogs: Query<&mut RuiFileDialog>,
+    q_dropdowns: Query<&crate::widgets::dropdown::RuiDropdown>,
+    q_texts: Query<&Text, Changed<Text>>,
+) {
+    for mut dialog in &mut q_dialogs {
+        if let Some(dropdown_entity) = dialog.filter_dropdown {
+            if let Ok(dropdown) = q_dropdowns.get(dropdown_entity) {
+                if q_texts.get(dropdown.text_entity).is_ok() {
+                    dialog.needs_refresh = true;
                 }
             }
         }
