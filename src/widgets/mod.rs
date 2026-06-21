@@ -18,6 +18,7 @@ pub mod windows;
 pub mod viewport;
 pub mod docks;
 pub mod slider;
+pub mod color_picker;
 
 pub use accordion::*;
 pub use button::*;
@@ -35,6 +36,7 @@ pub use tooltip::*;
 pub use windows::*;
 pub use viewport::*;
 pub use docks::*;
+pub use color_picker::*;
 
 #[derive(Resource)]
 pub struct RuiDefaultFont(pub Handle<Font>);
@@ -58,6 +60,7 @@ pub trait RuiBuilderExt {
     fn button(&mut self, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_>;
     fn label(&mut self, text: &str, modifier: impl FnOnce(&mut TextFont, &mut TextColor)) -> EntityCommands<'_>;
     fn textbox(&mut self, placeholder: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'_>;
+    fn color_picker(&mut self, initial_color: Color, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_>;
     fn multiline_textbox(&mut self, placeholder: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'_>;
     fn scrollview(&mut self, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_>;
     fn accordion(&mut self, title: &str, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_>;
@@ -90,7 +93,11 @@ impl RuiBuilderExt for ChildSpawnerCommands<'_> {
         label::spawn_label(self, text, modifier)
     }
     fn textbox(&mut self, placeholder: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'_> {
-        textbox::spawn_textbox(self, placeholder, modifier)
+        crate::widgets::textbox::spawn_textbox(self, placeholder, modifier)
+    }
+    
+    fn color_picker(&mut self, initial_color: Color, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_> {
+        crate::widgets::color_picker::spawn_color_picker(self, initial_color, modifier)
     }
     fn multiline_textbox(&mut self, placeholder: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'_> {
         textbox::spawn_multiline_textbox(self, placeholder, modifier)
@@ -152,6 +159,7 @@ impl Plugin for RuiWidgets {
     fn build(&self, app: &mut App) {
         app.init_non_send_resource::<RuiClipboard>();
         app.init_resource::<crate::theme::RuiTheme>();
+        app.add_systems(Startup, color_picker::setup_color_picker_images);
         
         app.add_systems(Update, (
             crate::theme::apply_rui_theme,
@@ -178,6 +186,12 @@ impl Plugin for RuiWidgets {
             file_dialog::handle_file_clicks,
             file_dialog::handle_dialog_buttons,
             file_dialog::handle_dropdown_change,
+            color_picker::handle_color_picker_clicks,
+            color_picker::close_color_picker_on_outside_click,
+            color_picker::update_color_picker_popups,
+            color_picker::sync_color_picker,
+            color_picker::apply_color_picker_images,
+            color_picker::handle_color_picker_2d_interaction,
         ));
 
         // Eventos

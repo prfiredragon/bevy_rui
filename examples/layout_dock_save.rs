@@ -184,7 +184,22 @@ fn setup(
                     // Dock Derecho (Inspector)
                     right_area.dock_panel(0, |_| {}, |tabs| {
                         tabs.tab("Inspector", false, |_, _| {}, |content| {
-                            content.label("Propiedades", |_,_|{});
+                            content.vbox(|s| {
+                                s.width = Val::Percent(100.0);
+                                s.padding = UiRect::all(Val::Px(10.0));
+                            }, |v| {
+                                v.label("Propiedades", |_,_|{});
+                                v.hbox(|s| {
+                                    s.width = Val::Percent(100.0);
+                                    s.margin = UiRect::top(Val::Px(10.0));
+                                    s.align_items = AlignItems::Center;
+                                }, |h| {
+                                    h.label("Color: ", |_,_|{});
+                                    h.color_picker(Color::srgb(1.0, 0.0, 0.0), |s| {
+                                        s.margin = UiRect::left(Val::Px(10.0));
+                                    });
+                                });
+                            });
                         });
                         tabs.tab("Settings", true, |_, _| {}, |content| {
                             content.label("Ajustes globales", |_,_|{});

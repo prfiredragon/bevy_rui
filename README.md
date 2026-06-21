@@ -4,16 +4,17 @@ These are the 3 demos included. for the game demo you need the [kenney ui assets
 
 * the texture for the widgets are not finish.
 
-
 ## Widgets
 
 * Acordion menu
 * Button
 * Checkbox
-* dock
-* dropdown
+* Color Picker
+* Dock
+* Dropdown
 * Label
 * Menu
+* Open/Save dialog
 * Slider
 * Tabs
 * Textbox
@@ -26,6 +27,11 @@ These are the 3 demos included. for the game demo you need the [kenney ui assets
 [dock demo](https://github.com/prfiredragon/bevy_rui/blob/main/examples/layout_dock.rs)
 
 ![](assets/20260619_221219_demo_editor.png)
+
+
+[Layout dock save](https://github.com/prfiredragon/bevy_rui/blob/main/examples/layout_dock_save.rs)
+
+![](assets/20260621_093832_20240718_09h22m19s_grim.png)
 
 
 [layout demo](https://github.com/prfiredragon/bevy_rui/blob/main/examples/layout_test.rs)
