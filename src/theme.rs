@@ -110,6 +110,7 @@ pub fn apply_rui_theme(
                 if let Some(ref img) = theme.image_panel {
                     image_node.image = img.clone();
                     image_node.color = Color::WHITE;
+                    image_node.visual_box = bevy::ui::VisualBox::BorderBox;
                     if theme.panel_margin > 0.0 {
                         image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
                             border: BorderRect::all(theme.panel_margin),
@@ -118,18 +119,20 @@ pub fn apply_rui_theme(
                             max_corner_scale: 1.0,
                         });
                     } else {
-                        image_node.image_mode = NodeImageMode::Auto;
+                        image_node.image_mode = NodeImageMode::Stretch;
                     }
                 } else {
                     image_node.image = Handle::default();
                     image_node.color = theme.color_panel;
-                    image_node.image_mode = NodeImageMode::Auto;
+                    image_node.visual_box = bevy::ui::VisualBox::BorderBox;
+                    image_node.image_mode = NodeImageMode::Stretch;
                 }
             }
             RuiThemeElement::WindowHeader => {
                 if let Some(ref img) = theme.image_window_header {
                     image_node.image = img.clone();
                     image_node.color = Color::WHITE;
+                    image_node.visual_box = bevy::ui::VisualBox::BorderBox;
                     if theme.window_header_margin > 0.0 {
                         image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
                             border: BorderRect::all(theme.window_header_margin),
@@ -138,12 +141,12 @@ pub fn apply_rui_theme(
                             max_corner_scale: 1.0,
                         });
                     } else {
-                        image_node.image_mode = NodeImageMode::Auto;
+                        image_node.image_mode = NodeImageMode::Stretch;
                     }
                 } else {
                     image_node.image = Handle::default();
                     image_node.color = theme.color_window_header;
-                    image_node.image_mode = NodeImageMode::Auto;
+                    image_node.image_mode = NodeImageMode::Stretch;
                 }
                 if let Some(ref mut node) = opt_node {
                     node.margin = theme.window_header_layout_margin;
@@ -153,6 +156,7 @@ pub fn apply_rui_theme(
                 if let Some(ref img) = theme.image_button_normal {
                     image_node.image = img.clone();
                     image_node.color = Color::WHITE;
+                    image_node.visual_box = bevy::ui::VisualBox::BorderBox;
                     if theme.button_margin > 0.0 {
                         image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
                             border: BorderRect::all(theme.button_margin),
@@ -161,18 +165,20 @@ pub fn apply_rui_theme(
                             max_corner_scale: 1.0,
                         });
                     } else {
-                        image_node.image_mode = NodeImageMode::Auto;
+                        image_node.image_mode = NodeImageMode::Stretch;
                     }
                 } else {
                     image_node.image = Handle::default();
                     image_node.color = theme.color_button_normal;
-                    image_node.image_mode = NodeImageMode::Auto;
+                    image_node.visual_box = bevy::ui::VisualBox::BorderBox;
+                    image_node.image_mode = NodeImageMode::Stretch;
                 }
             }
             RuiThemeElement::TextboxBg => {
                 if let Some(ref img) = theme.image_textbox_bg {
                     image_node.image = img.clone();
                     image_node.color = Color::WHITE;
+                    image_node.visual_box = bevy::ui::VisualBox::BorderBox;
                     if theme.textbox_margin > 0.0 {
                         image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
                             border: BorderRect::all(theme.textbox_margin),
@@ -181,12 +187,12 @@ pub fn apply_rui_theme(
                             max_corner_scale: 1.0,
                         });
                     } else {
-                        image_node.image_mode = NodeImageMode::Auto;
+                        image_node.image_mode = NodeImageMode::Stretch;
                     }
                 } else {
                     image_node.image = Handle::default();
                     image_node.color = theme.color_textbox_bg;
-                    image_node.image_mode = NodeImageMode::Auto;
+                    image_node.image_mode = NodeImageMode::Stretch;
                 }
             }
             _ => {}
@@ -203,7 +209,7 @@ pub fn apply_rui_theme(
     // Apply to text fonts and colors
     let apply_to_text = |mut font: Mut<TextFont>, mut color: Mut<TextColor>, element: &RuiThemeElement| {
         if theme.font != Handle::default() {
-            font.font = theme.font.clone();
+            font.font = bevy::prelude::FontSource::Handle(theme.font.clone());
         }
         match element {
             RuiThemeElement::Text => color.0 = theme.color_text,

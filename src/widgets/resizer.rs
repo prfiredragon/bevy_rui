@@ -52,7 +52,7 @@ pub fn spawn_resizer<'a>(
         Button,
         bevy::ui::FocusPolicy::Block,
         Interaction::None,
-        ImageNode::solid_color(Color::BLACK),
+        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::BLACK) },
         colors.clone(),
         RuiResizer { dir, dragging: false, min_size, is_collapsed_prev: false, is_collapsed_next: false, last_cursor_pos: None },
         crate::focus::Focusable,
@@ -77,24 +77,24 @@ pub fn spawn_resizer<'a>(
         let prev_text = if dir == RuiResizerDir::Horizontal { "<" } else { "^" };
         let mut prev_text_id = Entity::PLACEHOLDER;
         p.spawn((
-            btn_s.clone(), Button, ImageNode::solid_color(Color::srgb(0.1, 0.1, 0.1)),
+            btn_s.clone(), Button, ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.1, 0.1, 0.1)) },
             BorderColor::all(Color::srgb(0.3, 0.3, 0.3)), colors.clone(),
             Pickable::default(),
             bevy::ui::FocusPolicy::Block,
         )).with_children(|b| {
-            prev_text_id = b.spawn((Text::new(prev_text), TextFont { font_size: 14.0, ..default() }, TextColor(Color::WHITE), Pickable::IGNORE)).id();
+            prev_text_id = b.spawn((Text::new(prev_text), TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() }, TextColor(Color::WHITE), Pickable::IGNORE)).id();
         }).insert(RuiResizerCollapseBtn { resizer_entity: resizer_id, is_prev: true, text_entity: prev_text_id });
 
         // Botón flecha Next (Derecha o Abajo)
         let next_text = if dir == RuiResizerDir::Horizontal { ">" } else { "v" };
         let mut next_text_id = Entity::PLACEHOLDER;
         p.spawn((
-            btn_s, Button, ImageNode::solid_color(Color::srgb(0.1, 0.1, 0.1)),
+            btn_s, Button, ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.1, 0.1, 0.1)) },
             BorderColor::all(Color::srgb(0.3, 0.3, 0.3)), colors,
             Pickable::default(),
             bevy::ui::FocusPolicy::Block,
         )).with_children(|b| {
-            next_text_id = b.spawn((Text::new(next_text), TextFont { font_size: 14.0, ..default() }, TextColor(Color::WHITE), Pickable::IGNORE)).id();
+            next_text_id = b.spawn((Text::new(next_text), TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() }, TextColor(Color::WHITE), Pickable::IGNORE)).id();
         }).insert(RuiResizerCollapseBtn { resizer_entity: resizer_id, is_prev: false, text_entity: next_text_id });
     });
 

@@ -65,7 +65,7 @@ pub fn spawn_slider<'a>(
                 border_radius: BorderRadius::all(Val::Px(3.0)),
                 ..default()
             },
-            ImageNode::solid_color(Color::srgb(0.1, 0.1, 0.1)),
+            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.1, 0.1, 0.1)) },
             Interaction::None,
         ));
         
@@ -79,7 +79,7 @@ pub fn spawn_slider<'a>(
                 border_radius: BorderRadius::all(Val::Px(3.0)),
                 ..default()
             },
-            ImageNode::solid_color(Color::srgb(0.4, 0.6, 1.0)), // Default, can be themed later
+            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.4, 0.6, 1.0)) }, // Default, can be themed later
             RuiSliderFill { slider_entity: slider_id },
             Interaction::None,
         ));
@@ -94,7 +94,7 @@ pub fn spawn_slider<'a>(
                 border_radius: BorderRadius::all(Val::Px(8.0)), // Makes it circular
                 ..default()
             },
-            ImageNode::solid_color(Color::srgb(0.9, 0.9, 0.9)), // Default color
+            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.9, 0.9, 0.9)) }, // Default color
             Interaction::None,
             Pickable::default(),
             bevy::ui::FocusPolicy::Pass,
@@ -128,7 +128,7 @@ pub fn handle_slider_interaction(
     let cursor_pos = q_window.iter().next().and_then(|w| w.cursor_position());
 
     for (entity, mut slider, interaction, computed, mut border) in &mut q_slider {
-        let is_focused = focus.0 == Some(entity);
+        let is_focused = focus.get() == Some(entity);
         if is_focused {
             *border = BorderColor::all(Color::srgb(0.4, 0.6, 1.0));
         } else {

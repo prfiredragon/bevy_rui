@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy::ecs::relationship::Relationship;
-use bevy::input_focus::InputFocus;
+use bevy::input_focus::{InputFocus, FocusCause};
 use bevy::ui::auto_directional_navigation::AutoDirectionalNavigation;
 
 /// Tracks the currently active window or scope to restrict directional navigation
@@ -81,14 +81,14 @@ pub fn sync_mouse_to_focus(
     for (entity, interaction) in &interaction_query {
         if *interaction == Interaction::Pressed {
             // Explicit click always steals focus
-            if input_focus.0 != Some(entity) {
-                input_focus.set(entity);
+            if input_focus.get() != Some(entity) {
+                input_focus.set(entity, FocusCause::Navigated);
             }
         } else if *interaction == Interaction::Hovered {
             // Hover steals focus only if it's in the active window OR if gamepad navigation is disabled
             if !config.enabled || is_in_active_window(entity, &active_scope, &parents, no_windows) {
-                if input_focus.0 != Some(entity) {
-                    input_focus.set(entity);
+                if input_focus.get() != Some(entity) {
+                    input_focus.set(entity, FocusCause::Navigated);
                 }
             }
         }
@@ -146,8 +146,8 @@ pub fn manage_focus_scopes(
             }
         }
 
-        if in_active && scope_changed && input_focus.0.is_none() {
-            input_focus.set(entity);
+        if in_active && scope_changed && input_focus.get().is_none() {
+            input_focus.set(entity, FocusCause::Navigated);
         }
     }
 }

@@ -65,7 +65,7 @@ fn setup(mut commands: Commands) {
         }, |vbox| {
             // Texto de título
             vbox.label("Ejemplo de File Dialog Nativo en Rui", |font, color| {
-                font.font_size = 30.0;
+                font.font_size = FontSize::Px(30.0);
                 color.0 = Color::WHITE;
             });
 

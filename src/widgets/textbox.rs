@@ -5,7 +5,7 @@ use bevy::ui::RelativeCursorPosition;
 use bevy::text::TextLayoutInfo;
 
 
-use bevy::input_focus::InputFocus;
+use bevy::input_focus::{InputFocus, FocusCause};
 use crate::widgets::{ RuiClipboard};
 use crate::widgets::scrollview::{RuiVerticalScrollbar, RuiHorizontalScrollbar};
 
@@ -108,7 +108,7 @@ pub fn spawn_textbox<'a>(
             crate::focus::Focusable,
             bevy::ui::FocusPolicy::Block,
             Pickable::default(),
-            ImageNode::default(),
+            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::default() },
             crate::theme::RuiThemeElement::TextboxBg,
             BorderColor::all(Color::srgb(0.051, 0.051, 0.051)),
             RelativeCursorPosition::default(),
@@ -138,7 +138,7 @@ pub fn spawn_textbox<'a>(
                     left: Val::Px(14.0),
                     ..default()
                 },
-                ImageNode::solid_color(Color::WHITE),
+                ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::WHITE) },
                 Visibility::Hidden,
                 RuiCursor,
                 Pickable::IGNORE,
@@ -152,7 +152,7 @@ pub fn spawn_textbox<'a>(
                     height: Val::Px(20.0),
                     ..default()
                 },
-                ImageNode::solid_color(Color::srgba(0.2, 0.4, 0.8, 0.5)),
+                ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgba(0.2, 0.4, 0.8, 0.5)) },
                 Visibility::Hidden,
                 RuiSelectionHighlight,
                 Pickable::IGNORE,
@@ -166,7 +166,7 @@ pub fn spawn_textbox<'a>(
                     height: Val::Percent(0.0),
                     ..default()
                 },
-                ImageNode::solid_color(Color::srgba(0.8, 0.8, 0.8, 0.5)),
+                ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgba(0.8, 0.8, 0.8, 0.5)) },
                 Visibility::Hidden,
                 RuiVerticalScrollbar,
                 Pickable::IGNORE,
@@ -180,7 +180,7 @@ pub fn spawn_textbox<'a>(
                     height: Val::Px(6.0),
                     ..default()
                 },
-                ImageNode::solid_color(Color::srgba(0.8, 0.8, 0.8, 0.5)),
+                ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgba(0.8, 0.8, 0.8, 0.5)) },
                 Visibility::Hidden,
                 RuiHorizontalScrollbar,
                 Pickable::IGNORE,
@@ -211,7 +211,7 @@ pub fn handle_textbox_input(
     mut query: Query<&mut RuiTextBox>,
     mut clipboard: NonSendMut<RuiClipboard>,
 ) {
-    let Some(focused_entity) = focus.0 else { return };
+    let Some(focused_entity) = focus.get() else { return };
     let Ok(mut textbox) = query.get_mut(focused_entity) else { return };
 
     let ctrl = keys.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight, KeyCode::SuperLeft, KeyCode::SuperRight]);
@@ -466,7 +466,7 @@ pub fn update_textbox_visuals(
     mut h_scroll_query: Query<(&mut Node, &mut Visibility), (With<RuiHorizontalScrollbar>, Without<RuiTextBoxText>, Without<RuiCursor>, Without<RuiSelectionHighlight>, Without<RuiVerticalScrollbar>)>,
 ) {
     for (entity, rel_pos, mut textbox, mut border, computed, children) in &mut textbox_query {
-        let is_focused = focus.0 == Some(entity);
+        let is_focused = focus.get() == Some(entity);
         let show_scrollbars = rel_pos.cursor_over() || textbox.dragging_v_scroll || textbox.dragging_h_scroll;
 
         if is_focused {
@@ -494,7 +494,7 @@ pub fn update_textbox_visuals(
         let text_child = children.iter().find(|&c| text_query.contains(c));
 
         if let Some((mut text, layout_opt, mut text_node, text_layout_opt, font_opt)) = text_child.and_then(|e| text_query.get_mut(e).ok()) {
-                let font_size = font_opt.map_or(18.0, |f| f.font_size);
+                let font_size = font_opt.map_or(18.0, |f| match f.font_size { bevy::prelude::FontSize::Px(v) | bevy::prelude::FontSize::Vw(v) | bevy::prelude::FontSize::Vh(v) | bevy::prelude::FontSize::VMin(v) | bevy::prelude::FontSize::VMax(v) | bevy::prelude::FontSize::Rem(v) => v });
                 if text.0 != display_text { text.0 = display_text; }
                 
                 // Si el texto visual está vacío (por ejemplo, al entrar en foco un textbox vacío),
@@ -619,7 +619,7 @@ pub fn handle_textbox_clicks(
     mut textbox_query: Query<(Entity, &RelativeCursorPosition, &Interaction, &ComputedNode, &Children, &mut RuiTextBox)>,
     text_query: Query<(&TextLayoutInfo, Option<&TextFont>), With<RuiTextBoxText>>,
 ) {
-    let Some(focused_entity) = focus.0 else { return; };
+    let Some(focused_entity) = focus.get() else { return; };
     if let Ok((_, rel_pos, interaction, parent_comp, children, mut textbox)) = textbox_query.get_mut(focused_entity) {
         if !mouse.pressed(MouseButton::Left) { textbox.dragging_v_scroll = false; textbox.dragging_h_scroll = false; return; }
         if let Some(pos) = rel_pos.normalized {
@@ -650,7 +650,7 @@ pub fn handle_textbox_clicks(
                 .and_then(|e| text_query.get(e).ok());
             if let Some((layout, font_opt)) = text_layout {
                     let max_idx = textbox.text.chars().count();
-                    let font_size = font_opt.map_or(18.0, |f| f.font_size);
+                    let font_size = font_opt.map_or(18.0, |f| match f.font_size { bevy::prelude::FontSize::Px(v) | bevy::prelude::FontSize::Vw(v) | bevy::prelude::FontSize::Vh(v) | bevy::prelude::FontSize::VMin(v) | bevy::prelude::FontSize::VMax(v) | bevy::prelude::FontSize::Rem(v) => v });
                     let mut clicked_idx = 0;
                     if textbox.mode == RuiTextBoxMode::SingleLine {
                         let tx = lx - 14.0 + textbox.scroll_offset.x;

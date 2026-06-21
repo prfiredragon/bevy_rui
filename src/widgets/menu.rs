@@ -78,7 +78,7 @@ pub fn spawn_menu_bar<'a>(
 
     let mut cmds = parent.spawn((
         s,
-        ImageNode::solid_color(Color::srgb(0.12, 0.12, 0.12)),
+        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.12, 0.12, 0.12)) },
         RuiMenuBar::default(),
     ));
 
@@ -114,7 +114,7 @@ pub fn spawn_submenu<'a>(
     let mut cmds = parent.spawn((
         Button,
         s,
-        ImageNode::solid_color(Color::NONE),
+        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::NONE) },
         colors,
         Focusable,
     ));
@@ -136,9 +136,9 @@ pub fn spawn_submenu<'a>(
                 }).with_children(|icon_box| {
                     match icon_type {
                         RuiIcon::Emoji(e, font_opt) => {
-                            let mut text_font = TextFont { font_size: 14.0, ..default() };
+                            let mut text_font = TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() };
                             if let Some(f) = font_opt {
-                                text_font.font = f;
+                                text_font.font = bevy::prelude::FontSource::Handle(f);
                             }
                             icon_box.spawn((Text::new(e), text_font, TextColor(Color::WHITE)));
                         },
@@ -157,7 +157,7 @@ pub fn spawn_submenu<'a>(
             // Label
             row.spawn((
                 Text::new(label),
-                TextFont { font_size: 14.0, ..default() },
+                TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() },
                 TextColor(Color::WHITE),
             ));
         });
@@ -166,7 +166,7 @@ pub fn spawn_submenu<'a>(
         if depth > 0 {
             inner.spawn((
                 Text::new(">"),
-                TextFont { font_size: 12.0, ..default() },
+                TextFont { font_size: bevy::prelude::FontSize::Px(12.0), ..default() },
                 TextColor(Color::srgb(0.5, 0.5, 0.5)),
             ));
         }
@@ -186,7 +186,7 @@ pub fn spawn_submenu<'a>(
                 min_width: Val::Px(160.0),
                 ..default()
             },
-            ImageNode::solid_color(Color::srgb(0.15, 0.15, 0.16)),
+            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.15, 0.15, 0.16)) },
             BorderColor::all(Color::BLACK),
             ZIndex(100 + depth as i32),
             GlobalZIndex(100 + depth as i32),
@@ -223,7 +223,7 @@ pub fn spawn_menu_item<'a>(
     let mut cmds = parent.spawn((
         Button,
         s,
-        ImageNode::solid_color(Color::NONE),
+        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::NONE) },
         colors,
         Focusable,
     ));
@@ -240,9 +240,9 @@ pub fn spawn_menu_item<'a>(
             }).with_children(|icon_box| {
                 match icon_type {
                     RuiIcon::Emoji(e, font_opt) => {
-                        let mut text_font = TextFont { font_size: 14.0, ..default() };
+                        let mut text_font = TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() };
                         if let Some(f) = font_opt {
-                            text_font.font = f;
+                            text_font.font = bevy::prelude::FontSource::Handle(f);
                         }
                         icon_box.spawn((Text::new(e), text_font, TextColor(Color::WHITE)));
                     },
@@ -261,7 +261,7 @@ pub fn spawn_menu_item<'a>(
         // Label
         row.spawn((
             Text::new(label),
-            TextFont { font_size: 14.0, ..default() },
+            TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() },
             TextColor(Color::WHITE),
         ));
     });

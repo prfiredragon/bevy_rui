@@ -28,20 +28,20 @@ pub fn spawn_dropdown<'a>(
         };
         modifier(&mut s);
         let colors = RuiButtonStateColors::default();
-        let mut cmds = parent_cmd.spawn((s, Button, crate::focus::Focusable, bevy::ui::FocusPolicy::Block, colors.clone(), ImageNode::solid_color(colors.normal)));
+        let mut cmds = parent_cmd.spawn((s, Button, crate::focus::Focusable, bevy::ui::FocusPolicy::Block, colors.clone(), ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(colors.normal) }));
         cmds.with_children(|parent| {
             let header_id = parent.target_entity();
             let text_id = parent.spawn((
                 Text::new(default_value), 
                 TextFont::default(), 
                 TextColor(Color::WHITE),
-                TextLayout::new_with_justify(Justify::Left).with_no_wrap(),
+                TextLayout::justify(Justify::Left).with_no_wrap(),
                 Node { overflow: Overflow::clip(), flex_shrink: 1.0, min_width: Val::Px(0.0), ..default() }
             )).id();
             parent.spawn((Text::new("▼"), TextFont::default(), TextColor(Color::WHITE)));
             let popup_id = parent.commands().spawn((
                 Node { display: Display::None, position_type: PositionType::Absolute, flex_direction: FlexDirection::Column, width: Val::Px(150.0), border: UiRect::all(Val::Px(1.0)), ..default() },
-                ImageNode::solid_color(Color::srgb(0.15, 0.15, 0.15)), BorderColor::all(Color::srgb(0.3, 0.3, 0.3)), ZIndex(500), bevy::ui::FocusPolicy::Block,
+                ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.15, 0.15, 0.15)) }, BorderColor::all(Color::srgb(0.3, 0.3, 0.3)), ZIndex(500), bevy::ui::FocusPolicy::Block,
                   GlobalZIndex(100), 
             )).with_children(|popup| {
                 for opt in options {
@@ -49,14 +49,14 @@ pub fn spawn_dropdown<'a>(
                         Node { width: Val::Percent(100.0), padding: UiRect::all(Val::Px(8.0)), ..default() },
                         Button, crate::focus::Focusable, bevy::ui::FocusPolicy::Block, Pickable::default(),
                         RuiButtonStateColors { normal: Color::srgb(0.15, 0.15, 0.15), hovered: Color::srgb(0.25, 0.25, 0.35), pressed: Color::srgb(0.1, 0.1, 0.2) },
-                        ImageNode::solid_color(Color::srgb(0.15, 0.15, 0.15)),
+                        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.15, 0.15, 0.15)) },
                         RuiDropdownOption { dropdown_entity: header_id, value: opt.to_string() }
                     )).with_children(|opt_btn| {
                         opt_btn.spawn((
                             Text::new(*opt), 
                             TextFont::default(), 
                             TextColor(Color::WHITE),
-                            TextLayout::new_with_justify(Justify::Left).with_no_wrap(),
+                            TextLayout::justify(Justify::Left).with_no_wrap(),
                             Node { overflow: Overflow::clip(), flex_shrink: 1.0, min_width: Val::Px(0.0), ..default() }
                         ));
                     });

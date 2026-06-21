@@ -72,7 +72,7 @@ fn setup(
 
     // 3. Escena 3D (Luz y Cubo Interactivo)
     commands.spawn((
-        DirectionalLight { shadows_enabled: true, ..default() },
+        DirectionalLight { shadow_maps_enabled: true, ..default() },
         Transform::from_xyz(-4.0, 8.0, -4.0),
     ));
 
@@ -152,7 +152,7 @@ fn setup(
                         s.width = Val::Px(160.0);
                         s.height = Val::Px(45.0);
                     }, |btn| {
-                        btn.label("¡Hazme Clic!", |font, _color| font.font_size = 20.0);
+                        btn.label("¡Hazme Clic!", |font, _color| font.font_size = FontSize::Px(20.0));
                     }).insert(TestButton);
 
                     // ¡AQUÍ ESTÁ EL NUEVO DROPDOWN!
@@ -168,14 +168,14 @@ fn setup(
                         s.width = Val::Px(250.0);
                         s.height = Val::Px(45.0);
                         s.margin = UiRect::top(Val::Px(15.0)); // Añadimos un pequeño margen arriba
-                        font.font_size = 18.0;
+                        font.font_size = FontSize::Px(18.0);
                     }).insert(TestTextBox);
 
                     left_panel.textbox("Escribe tu nombre...", |s, font, _color| {
                         s.width = Val::Px(300.0);
                         s.height = Val::Px(45.0);
                         s.margin = UiRect::top(Val::Px(15.0)); 
-                        font.font_size = 22.0;
+                        font.font_size = FontSize::Px(22.0);
                     }).insert(RuiTextBox {
                         placeholder: "Escribe tu nombre...".to_string(),
                         max_characters: Some(15),
@@ -196,7 +196,7 @@ fn setup(
                     s.row_gap = Val::Px(20.0);
                 }, |_center_panel| {
                     _center_panel.label("Visor 3D", |font, color| {
-                        font.font_size = 40.0;
+                        font.font_size = FontSize::Px(40.0);
                         color.0 = Color::srgb(1.0, 1.0, 0.0); // Texto amarillo
                     });
 
@@ -209,7 +209,7 @@ fn setup(
                     s.justify_content = JustifyContent::Center;
                     s.align_items = AlignItems::Center;
                 }, |right_panel| {
-                    right_panel.label("Menú Derecho", |font, _| font.font_size = 24.0);
+                    right_panel.label("Menú Derecho", |font, _| font.font_size = FontSize::Px(24.0));
                      // Ejemplo rápido de un Panel Derecho tipo Menú con Scroll!
                     right_panel.scrollview(|s| {
                         s.width = Val::Percent(20.0);
@@ -244,14 +244,14 @@ fn setup(
                 bottom_hbox.multiline_textbox("Consola Editable...", |s, font, _color| {
                     s.width = Val::Percent(50.0);
                     s.height = Val::Percent(100.0);
-                    font.font_size = 18.0;
+                    font.font_size = FontSize::Px(18.0);
                 }).insert(EditableConsole);
 
                 // Consola 2: Readonly (Solo lectura)
                 bottom_hbox.multiline_textbox("Consola Solo Lectura...", |s, font, color| {
                     s.width = Val::Percent(50.0);
                     s.height = Val::Percent(100.0);
-                    font.font_size = 18.0;
+                    font.font_size = FontSize::Px(18.0);
                     color.0 = Color::srgb(0.7, 0.7, 0.7); // Texto más gris para diferenciar
                 }).insert(ReadonlyConsole).insert(RuiTextBox {
                     placeholder: "Consola Solo Lectura...".to_string(),

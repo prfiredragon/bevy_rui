@@ -33,7 +33,7 @@ pub fn spawn_accordion<'a>(
                 },
                 Button,
                 crate::focus::Focusable,
-                ImageNode::solid_color(Color::srgb(0.16, 0.16, 0.17)),
+                ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.16, 0.16, 0.17)) },
                 BorderColor::all(Color::srgb(0.1, 0.1, 0.11)),
                 RuiButtonStateColors {
                     normal: Color::srgb(0.16, 0.16, 0.17),
@@ -41,8 +41,8 @@ pub fn spawn_accordion<'a>(
                     pressed: Color::srgb(0.12, 0.12, 0.13),
                 },
             )).with_children(|header| {
-                header.spawn((Text::new(title), TextFont { font_size: 14.0, ..default() }, TextColor(Color::WHITE)));
-                header.spawn((Text::new("▶"), TextFont { font_size: 12.0, ..default() }, TextColor(Color::srgb(0.6, 0.6, 0.6))));
+                header.spawn((Text::new(title), TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() }, TextColor(Color::WHITE)));
+                header.spawn((Text::new("▶"), TextFont { font_size: bevy::prelude::FontSize::Px(12.0), ..default() }, TextColor(Color::srgb(0.6, 0.6, 0.6))));
             }).id();
 
             let content_id = parent.spawn((
@@ -52,7 +52,7 @@ pub fn spawn_accordion<'a>(
                     border: UiRect::left(Val::Px(2.0)),
                     ..default() 
                 },
-                ImageNode::solid_color(Color::srgb(0.12, 0.12, 0.12)),
+                ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.12, 0.12, 0.12)) },
                 BorderColor::all(Color::srgb(0.2, 0.2, 0.22)),
             )).with_children(children).id();
 

@@ -60,7 +60,7 @@ pub fn spawn_scrollview<'a>(
             )).with_children(|v_gutter| {
                 v_gutter.spawn((
                     Node { width: Val::Px(6.0), height: Val::Percent(0.0), margin: UiRect::top(Val::Px(2.0)), ..default() },
-                    ImageNode::solid_color(Color::srgba(0.8, 0.8, 0.8, 0.5)),
+                    ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgba(0.8, 0.8, 0.8, 0.5)) },
                 ));
             });
 
@@ -73,7 +73,7 @@ pub fn spawn_scrollview<'a>(
             )).with_children(|h_gutter| {
                 h_gutter.spawn((
                     Node { height: Val::Px(6.0), width: Val::Percent(0.0), margin: UiRect::left(Val::Px(2.0)), ..default() },
-                    ImageNode::solid_color(Color::srgba(0.8, 0.8, 0.8, 0.5)),
+                    ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgba(0.8, 0.8, 0.8, 0.5)) },
                 ));
             });
         });

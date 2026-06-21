@@ -73,7 +73,7 @@ pub fn spawn_tabs<'a>(
                 align_items: AlignItems::FlexEnd,
                 ..default()
             },
-            ImageNode::solid_color(Color::srgb(0.08, 0.08, 0.09)),
+            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.08, 0.08, 0.09)) },
         )).with_children(|header| {
             for (i, (label, closable, _, _)) in builder.tabs.iter().enumerate() {
                 let is_active = i == active_tab;
@@ -87,7 +87,7 @@ pub fn spawn_tabs<'a>(
                         border: UiRect::top(Val::Px(2.0)),
                         ..default()
                     },
-                    ImageNode::solid_color(if is_active { Color::srgb(0.2, 0.2, 0.22) } else { Color::srgb(0.12, 0.12, 0.14) }),
+                    ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(if is_active { Color::srgb(0.2, 0.2, 0.22) } else { Color::srgb(0.12, 0.12, 0.14) }) },
                     BorderColor::all(if is_active { Color::srgb(0.4, 0.6, 1.0) } else { Color::NONE }),
                     RuiButtonStateColors {
                         normal: if is_active { Color::srgb(0.2, 0.2, 0.22) } else { Color::srgb(0.12, 0.12, 0.14) },
@@ -100,7 +100,7 @@ pub fn spawn_tabs<'a>(
                 )).with_children(|btn| {
                     btn.spawn((
                         Text::new(label),
-                        TextFont { font_size: 14.0, ..default() },
+                        TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() },
                         TextColor(if is_active { Color::WHITE } else { Color::srgb(0.6, 0.6, 0.6) }),
                         Pickable::IGNORE,
                     ));
@@ -110,14 +110,14 @@ pub fn spawn_tabs<'a>(
                             Node { margin: UiRect::left(Val::Px(8.0)), ..default() },
                             Button,
                             RuiButtonStateColors { normal: Color::NONE, hovered: Color::srgb(0.8, 0.2, 0.2), pressed: Color::srgb(0.6, 0.1, 0.1) },
-                            ImageNode::solid_color(Color::NONE),
+                            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::NONE) },
                             RuiTabCloseButton { container_entity, tab_index: i },
                             crate::focus::Focusable,
                             Pickable::default(),
                             bevy::ui::FocusPolicy::Block,
                         )).with_children(|close_btn| {
                             close_btn.spawn((
-                                Text::new("x"), TextFont { font_size: 14.0, ..default() }, TextColor(Color::srgb(0.8, 0.4, 0.4)),
+                                Text::new("x"), TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() }, TextColor(Color::srgb(0.8, 0.4, 0.4)),
                                 Pickable::IGNORE,
                             ));
                         });
@@ -157,7 +157,7 @@ pub fn spawn_tabs<'a>(
                     flex_shrink: 1.0,
                     ..default()
                 };
-                let mut bg = ImageNode::solid_color(Color::srgb(0.12, 0.12, 0.14));
+                let mut bg = ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.12, 0.12, 0.14)) };
                 modifier(&mut node, &mut bg);
 
                 content_parent.spawn((
@@ -189,7 +189,7 @@ pub fn handle_tab_clicks(
                 if container.active_tab == button.tab_index { continue; }
                 container.active_tab = button.tab_index;
                 
-                input_focus.set(entity);
+                input_focus.set(entity, bevy::input_focus::FocusCause::Navigated);
                 
                 // Actualizar la visibilidad del contenido
                 for (mut node, content) in &mut contents {
