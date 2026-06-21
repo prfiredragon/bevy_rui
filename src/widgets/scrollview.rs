@@ -97,51 +97,64 @@ pub fn handle_scrollview_scroll(
     }
 }
 
+use bevy::input::mouse::MouseMotion;
+
 pub fn handle_scrollview_clicks(
     mouse: Res<ButtonInput<MouseButton>>,
-    mut query: Query<(&RelativeCursorPosition, &Interaction, &ComputedNode, &Children, &mut RuiScrollView)>,
+    mut mouse_motion: MessageReader<MouseMotion>,
+    mut query: Query<(&ComputedNode, &Children, &mut RuiScrollView)>,
     q_content: Query<&ComputedNode, With<RuiScrollContent>>,
     q_v_scroll: Query<&Interaction, With<RuiVerticalScrollbar>>,
     q_h_scroll: Query<&Interaction, With<RuiHorizontalScrollbar>>,
 ) {
-    for (rel_pos, interaction, container_comp, children, mut scrollview) in &mut query {
-        if !mouse.pressed(MouseButton::Left) { scrollview.dragging_v_scroll = false; scrollview.dragging_h_scroll = false; continue; }
-        if let Some(pos) = rel_pos.normalized {
-            let size = container_comp.size();
-            let (lx, ly) = ((pos.x + 0.5) * size.x, (pos.y + 0.5) * size.y);
-            if mouse.just_pressed(MouseButton::Left) {
-                let mut clicked_v = false;
-                let mut clicked_h = false;
-                if children.len() > 1 {
-                    if let Ok(v_int) = q_v_scroll.get(children[1]) {
-                        if *v_int == Interaction::Pressed { clicked_v = true; }
-                    }
+    let mut drag_delta = Vec2::ZERO;
+    for ev in mouse_motion.read() {
+        drag_delta += ev.delta;
+    }
+
+    for (container_comp, children, mut scrollview) in &mut query {
+        if !mouse.pressed(MouseButton::Left) { 
+            scrollview.dragging_v_scroll = false; 
+            scrollview.dragging_h_scroll = false; 
+            continue; 
+        }
+        
+        let size = container_comp.size();
+        
+        if mouse.just_pressed(MouseButton::Left) {
+            if children.len() > 1 {
+                if let Ok(v_int) = q_v_scroll.get(children[1]) {
+                    if *v_int == Interaction::Pressed { scrollview.dragging_v_scroll = true; }
                 }
-                if children.len() > 2 {
-                    if let Ok(h_int) = q_h_scroll.get(children[2]) {
-                        if *h_int == Interaction::Pressed { clicked_h = true; }
+            }
+            if children.len() > 2 {
+                if let Ok(h_int) = q_h_scroll.get(children[2]) {
+                    if *h_int == Interaction::Pressed { scrollview.dragging_h_scroll = true; }
+                }
+            }
+        }
+        
+        if let Some(content_entity) = children.first() {
+            if let Ok(content_comp) = q_content.get(*content_entity) {
+                let c_size = content_comp.size();
+                
+                if scrollview.dragging_v_scroll {
+                    let max_y = (c_size.y - size.y).max(0.0);
+                    if max_y > 0.0 {
+                        let h = (size.y / c_size.y) * size.y;
+                        let track_size = (size.y - h).max(1.0);
+                        let scroll_delta = drag_delta.y * max_y / track_size;
+                        scrollview.scroll_offset.y = (scrollview.scroll_offset.y + scroll_delta).clamp(0.0, max_y);
                     }
                 }
                 
-                if clicked_v || (*interaction == Interaction::Pressed && lx >= size.x - 14.0) { scrollview.dragging_v_scroll = true; }
-                else if clicked_h || (*interaction == Interaction::Pressed && ly >= size.y - 14.0) { scrollview.dragging_h_scroll = true; }
-            }
-            if let Some(content_entity) = children.first() {
-                if let Ok(content_comp) = q_content.get(*content_entity) {
-                    let c_size = content_comp.size();
-                    if scrollview.dragging_v_scroll {
-                        let max_y = (c_size.y - size.y).max(0.0);
-                        if max_y > 0.0 {
-                            let h = (size.y / c_size.y) * size.y;
-                            scrollview.scroll_offset.y = ((ly - 2.0 - h / 2.0) / (size.y - h - 4.0)).clamp(0.0, 1.0) * max_y;
-                        }
-                    }
-                    if scrollview.dragging_h_scroll {
-                        let max_x = (c_size.x - size.x).max(0.0);
-                        if max_x > 0.0 {
-                            let w = (size.x / c_size.x) * size.x;
-                            scrollview.scroll_offset.x = ((lx - 2.0 - w / 2.0) / (size.x - w - 4.0)).clamp(0.0, 1.0) * max_x;
-                        }
+                if scrollview.dragging_h_scroll {
+                    let max_x = (c_size.x - size.x).max(0.0);
+                    if max_x > 0.0 {
+                        let w = (size.x / c_size.x) * size.x;
+                        let track_size = (size.x - w).max(1.0);
+                        let scroll_delta = drag_delta.x * max_x / track_size;
+                        scrollview.scroll_offset.x = (scrollview.scroll_offset.x + scroll_delta).clamp(0.0, max_x);
                     }
                 }
             }
