@@ -44,18 +44,21 @@ pub fn spawn_button<'a>(
     cmds
 }
 
+#[derive(Component, Debug, Clone, PartialEq, Eq)]
+pub struct RuiSelected;
+
 pub fn handle_button_colors(
-    mut query: Query<(Entity, &Interaction, &mut ImageNode, Option<&crate::theme::RuiThemeElement>, Option<&RuiButtonStateColors>)>,
+    mut query: Query<(Entity, &Interaction, &mut ImageNode, Option<&crate::theme::RuiThemeElement>, Option<&RuiButtonStateColors>, Has<RuiSelected>)>,
     theme: Res<crate::theme::RuiTheme>,
     input_focus: Res<bevy::input_focus::InputFocus>,
 ) {
     let _focus_changed = input_focus.is_changed();
     
-    for (entity, interaction, mut image_node, theme_element, state_colors) in &mut query {
+    for (entity, interaction, mut image_node, theme_element, state_colors, is_selected) in &mut query {
         let _interaction_changed = true; // In a real scenario we'd track this via a local system parameter or ChangeTrackers, but checking color/image equality is cheap enough
         
         let is_focused = input_focus.get() == Some(entity);
-        let is_pressed = *interaction == Interaction::Pressed;
+        let is_pressed = *interaction == Interaction::Pressed || is_selected;
         let is_hovered = *interaction == Interaction::Hovered || (is_focused && !is_pressed);
 
         if let Some(colors) = state_colors {
@@ -66,16 +69,27 @@ pub fn handle_button_colors(
             if image_node.color != target_color {
                 image_node.color = target_color;
             }
-        } else if let Some(crate::theme::RuiThemeElement::Button) = theme_element {
-            let (target_color, target_image) = if is_pressed {
-                if let Some(ref img) = theme.image_button_pressed { (Color::WHITE, Some(img.clone())) }
-                else { (theme.color_button_pressed, None) }
-            } else if is_hovered {
-                if let Some(ref img) = theme.image_button_hover { (Color::WHITE, Some(img.clone())) }
-                else { (theme.color_button_hover, None) }
-            } else {
-                if let Some(ref img) = theme.image_button_normal { (Color::WHITE, Some(img.clone())) }
-                else { (theme.color_button_normal, None) }
+        } else if let Some(element) = theme_element {
+            let (target_color, target_image) = match element {
+                crate::theme::RuiThemeElement::Button => {
+                    if is_pressed {
+                        if let Some(ref img) = theme.image_button_pressed { (Color::WHITE, Some(img.clone())) }
+                        else { (theme.color_button_pressed, None) }
+                    } else if is_hovered {
+                        if let Some(ref img) = theme.image_button_hover { (Color::WHITE, Some(img.clone())) }
+                        else { (theme.color_button_hover, None) }
+                    } else {
+                        if let Some(ref img) = theme.image_button_normal { (Color::WHITE, Some(img.clone())) }
+                        else { (theme.color_button_normal, None) }
+                    }
+                },
+                crate::theme::RuiThemeElement::ListItem => {
+                    let color = if is_pressed { theme.color_list_item_pressed }
+                    else if is_hovered { theme.color_list_item_hover }
+                    else { theme.color_list_item_normal };
+                    (color, None)
+                },
+                _ => continue,
             };
 
             if image_node.color != target_color { image_node.color = target_color; }

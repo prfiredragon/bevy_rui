@@ -60,7 +60,47 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
+    mut theme: ResMut<bevy_rui::theme::RuiTheme>,
 ) {
+    // Fondo general de paneles y barras laterales
+    // Fondo de la app (el gris muy oscuro del IDE)
+    theme.color_panel = Color::srgb_u8(37, 37, 38);
+    // Para separar zonas, un panel general no tiene borde completo
+    theme.border_panel = UiRect::all(Val::Px(0.0));
+    // Texto general gris claro
+    theme.color_text = Color::srgb_u8(204, 204, 204);
+    // --- VENTANAS (Flotantes o modales) ---
+    theme.color_window_header = Color::srgb_u8(51, 51, 51);
+    theme.color_window_header_text = Color::srgb_u8(204, 204, 204);
+    // Borde distintivo negro para que la ventana resalte sobre el fondo oscuro
+    theme.border_window = UiRect::all(Val::Px(1.0));
+    theme.border_color_window = Color::BLACK;
+    theme.border_radius_window = BorderRadius::all(Val::Px(4.0)); // Opcional: un toque redondeado clásico de SO modernos
+    // --- CAJAS DE TEXTO (Inputs / Dropdowns) ---
+    theme.color_textbox_bg = Color::srgb_u8(60, 60, 60);
+    theme.border_textbox = UiRect::all(Val::Px(1.0));
+    theme.border_color_textbox = Color::srgb_u8(69, 69, 69); // Borde apenas más claro que el fondo
+    theme.border_radius_textbox = BorderRadius::all(Val::Px(2.0));
+    // --- BOTONES ESTILO VSCODE (Outlined) ---
+    // Reposo: Mismo color que el fondo, pero con borde
+    theme.color_button_normal = theme.color_panel;
+    theme.border_button = UiRect::all(Val::Px(1.0));
+    theme.border_color_button = Color::srgb_u8(69, 69, 69); // Borde estilo marco sutil
+    theme.border_radius_button = BorderRadius::all(Val::Px(2.0));
+    // Interacción: Cuando pasas el ratón cambian al clásico azul VSCode
+    theme.color_button_hover = Color::srgb_u8(17, 119, 187);
+    theme.color_button_pressed = Color::srgb_u8(9, 71, 113);
+    theme.color_button_text = Color::WHITE;
+
+    theme.color_list_item_normal = Color::NONE; // Transparente por defecto para no verse como bloque
+    theme.color_list_item_hover = Color::srgb_u8(42, 45, 46); 
+    theme.color_list_item_pressed = Color::srgb_u8(9, 71, 113); // Azul de selección
+    theme.border_list_item = UiRect::all(Val::Px(1.0));
+    theme.border_color_list_item = Color::NONE; // Sin borde visible por defecto
+    theme.border_radius_list_item = BorderRadius::all(Val::Px(2.0)); 
+    // ------------------------------------------
+    // ------------------------------------------
+
     // Cargar y establecer la fuente global para toda la UI
     commands.insert_resource(RuiDefaultFont(asset_server.load("fonts/afacad.ttf")));
 

@@ -355,7 +355,7 @@ pub fn update_file_list_ui(
                     
                     let texture = asset_server.load(icon_path);
                     
-                    p.button(|s| {
+                    let mut btn_cmds = p.button(|s| {
                         s.width = Val::Percent(100.0);
                         s.height = Val::Px(30.0);
                         s.justify_content = JustifyContent::FlexStart;
@@ -368,8 +368,14 @@ pub fn update_file_list_ui(
                             Node { width: Val::Px(20.0), height: Val::Px(20.0), margin: UiRect::right(Val::Px(8.0)), ..default() },
                         ));
                         // Text
-                        b.spawn((Text::new(name), TextFont { font_size: bevy::prelude::FontSize::Px(16.0), ..default() }, TextColor(Color::WHITE)));
-                    }).insert(RuiFileItem { path, is_dir, dialog_entity });
+                        b.spawn((Text::new(name.clone()), TextFont { font_size: bevy::prelude::FontSize::Px(16.0), ..default() }, TextColor(Color::WHITE)));
+                    });
+                    
+                    btn_cmds.insert((RuiFileItem { path, is_dir, dialog_entity }, crate::theme::RuiThemeElement::ListItem));
+
+                    if !is_dir && name == dialog.selected_file {
+                        btn_cmds.insert(crate::widgets::button::RuiSelected);
+                    }
                 }
             });
         }
@@ -398,6 +404,7 @@ pub fn handle_file_clicks(
                             textbox.text = dialog.selected_file.clone();
                             textbox.cursor_index = textbox.text.chars().count();
                         }
+                        dialog.needs_refresh = true;
                     }
                 }
             }

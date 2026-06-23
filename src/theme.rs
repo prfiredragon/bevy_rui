@@ -5,7 +5,9 @@ use bevy::ui::widget::NodeImageMode;
 #[derive(Component, Debug, Clone, PartialEq, Eq)]
 pub enum RuiThemeElement {
     Panel,
+    Window,
     Button,
+    ListItem,
     WindowHeader,
     TextboxBg,
     CheckboxIcon,
@@ -35,7 +37,31 @@ pub struct RuiTheme {
     pub color_button_pressed: Color,
     pub color_button_text: Color,
 
+    pub color_list_item_normal: Color,
+    pub color_list_item_hover: Color,
+    pub color_list_item_pressed: Color,
+
     pub color_textbox_bg: Color,
+
+    pub border_button: UiRect,
+    pub border_color_button: Color,
+    pub border_radius_button: BorderRadius,
+
+    pub border_list_item: UiRect,
+    pub border_color_list_item: Color,
+    pub border_radius_list_item: BorderRadius,
+
+    pub border_window: UiRect,
+    pub border_color_window: Color,
+    pub border_radius_window: BorderRadius,
+
+    pub border_panel: UiRect,
+    pub border_color_panel: Color,
+    pub border_radius_panel: BorderRadius,
+
+    pub border_textbox: UiRect,
+    pub border_color_textbox: Color,
+    pub border_radius_textbox: BorderRadius,
 
     // Textures (Ninepatch)
     pub image_panel: Option<Handle<Image>>,
@@ -74,7 +100,31 @@ impl FromWorld for RuiTheme {
             color_button_pressed: Color::srgb(0.1, 0.1, 0.1),
             color_button_text: Color::WHITE,
 
+            color_list_item_normal: Color::NONE,
+            color_list_item_hover: Color::srgb(0.3, 0.3, 0.3),
+            color_list_item_pressed: Color::srgb(0.1, 0.1, 0.1),
+
             color_textbox_bg: Color::srgb(0.1, 0.1, 0.1),
+
+            border_button: UiRect::all(Val::Px(0.0)),
+            border_color_button: Color::NONE,
+            border_radius_button: BorderRadius::all(Val::Px(0.0)),
+
+            border_list_item: UiRect::all(Val::Px(0.0)),
+            border_color_list_item: Color::NONE,
+            border_radius_list_item: BorderRadius::all(Val::Px(0.0)),
+
+            border_window: UiRect::all(Val::Px(0.0)),
+            border_color_window: Color::NONE,
+            border_radius_window: BorderRadius::all(Val::Px(0.0)),
+
+            border_panel: UiRect::all(Val::Px(0.0)),
+            border_color_panel: Color::NONE,
+            border_radius_panel: BorderRadius::all(Val::Px(0.0)),
+
+            border_textbox: UiRect::all(Val::Px(0.0)),
+            border_color_textbox: Color::NONE,
+            border_radius_textbox: BorderRadius::all(Val::Px(0.0)),
 
             image_panel: None,
             panel_margin: 0.0,
@@ -98,19 +148,50 @@ impl FromWorld for RuiTheme {
 }
 
 pub fn apply_rui_theme(
+    mut commands: Commands,
     theme: Res<RuiTheme>,
-    mut elements: Query<(&mut ImageNode, Option<&mut Node>, Ref<RuiThemeElement>)>,
+    mut elements: Query<(
+        Entity,
+        &mut ImageNode,
+        Option<&mut Node>,
+        Option<&mut BorderColor>,
+        Ref<RuiThemeElement>,
+    )>,
     mut text_elements: Query<(&mut TextFont, &mut TextColor, Ref<RuiThemeElement>)>,
 ) {
     let theme_changed = theme.is_changed();
 
-    let apply_to_image = |mut image_node: Mut<ImageNode>, mut opt_node: Option<Mut<Node>>, element: &RuiThemeElement| {
+    let mut apply_to_image = |entity: Entity, mut image_node: Mut<ImageNode>, mut opt_node: Option<Mut<Node>>, mut opt_border: Option<Mut<BorderColor>>, element: &RuiThemeElement| {
+        let (border_rect, border_color, border_radius) = match element {
+            RuiThemeElement::Button => (theme.border_button, theme.border_color_button, theme.border_radius_button),
+            RuiThemeElement::ListItem => (theme.border_list_item, theme.border_color_list_item, theme.border_radius_list_item),
+            RuiThemeElement::Window => (theme.border_window, theme.border_color_window, theme.border_radius_window),
+            RuiThemeElement::Panel => (theme.border_panel, theme.border_color_panel, theme.border_radius_panel),
+            RuiThemeElement::TextboxBg => (theme.border_textbox, theme.border_color_textbox, theme.border_radius_textbox),
+            _ => (UiRect::all(Val::Px(0.0)), Color::NONE, BorderRadius::all(Val::Px(0.0))),
+        };
+
+        if let Some(ref mut node) = opt_node {
+            node.border = border_rect;
+            node.border_radius = border_radius;
+        }
+
+        let has_border = border_rect.top != Val::Px(0.0) || border_rect.bottom != Val::Px(0.0) || border_rect.left != Val::Px(0.0) || border_rect.right != Val::Px(0.0);
+
+        if has_border || border_color != Color::NONE {
+            if let Some(ref mut b) = opt_border {
+                *b.as_mut() = BorderColor::all(border_color);
+            } else {
+                commands.entity(entity).insert(BorderColor::all(border_color));
+            }
+        }
+
         match element {
-            RuiThemeElement::Panel => {
+            RuiThemeElement::Panel | RuiThemeElement::Window => {
                 if let Some(ref img) = theme.image_panel {
                     image_node.image = img.clone();
                     image_node.color = Color::WHITE;
-                    image_node.visual_box = bevy::ui::VisualBox::BorderBox;
+                    image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
                     if theme.panel_margin > 0.0 {
                         image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
                             border: BorderRect::all(theme.panel_margin),
@@ -124,7 +205,7 @@ pub fn apply_rui_theme(
                 } else {
                     image_node.image = Handle::default();
                     image_node.color = theme.color_panel;
-                    image_node.visual_box = bevy::ui::VisualBox::BorderBox;
+                    image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
                     image_node.image_mode = NodeImageMode::Stretch;
                 }
             }
@@ -132,7 +213,7 @@ pub fn apply_rui_theme(
                 if let Some(ref img) = theme.image_window_header {
                     image_node.image = img.clone();
                     image_node.color = Color::WHITE;
-                    image_node.visual_box = bevy::ui::VisualBox::BorderBox;
+                    image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
                     if theme.window_header_margin > 0.0 {
                         image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
                             border: BorderRect::all(theme.window_header_margin),
@@ -156,7 +237,7 @@ pub fn apply_rui_theme(
                 if let Some(ref img) = theme.image_button_normal {
                     image_node.image = img.clone();
                     image_node.color = Color::WHITE;
-                    image_node.visual_box = bevy::ui::VisualBox::BorderBox;
+                    image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
                     if theme.button_margin > 0.0 {
                         image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
                             border: BorderRect::all(theme.button_margin),
@@ -170,15 +251,21 @@ pub fn apply_rui_theme(
                 } else {
                     image_node.image = Handle::default();
                     image_node.color = theme.color_button_normal;
-                    image_node.visual_box = bevy::ui::VisualBox::BorderBox;
+                    image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
                     image_node.image_mode = NodeImageMode::Stretch;
                 }
+            }
+            RuiThemeElement::ListItem => {
+                image_node.image = Handle::default();
+                image_node.color = theme.color_list_item_normal;
+                image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
+                image_node.image_mode = NodeImageMode::Stretch;
             }
             RuiThemeElement::TextboxBg => {
                 if let Some(ref img) = theme.image_textbox_bg {
                     image_node.image = img.clone();
                     image_node.color = Color::WHITE;
-                    image_node.visual_box = bevy::ui::VisualBox::BorderBox;
+                    image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
                     if theme.textbox_margin > 0.0 {
                         image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
                             border: BorderRect::all(theme.textbox_margin),
@@ -200,9 +287,9 @@ pub fn apply_rui_theme(
     };
 
     // Apply to images
-    for (image_node, opt_node, element_ref) in &mut elements {
+    for (entity, image_node, opt_node, opt_border, element_ref) in &mut elements {
         if theme_changed || element_ref.is_added() {
-            apply_to_image(image_node, opt_node, &*element_ref);
+            apply_to_image(entity, image_node, opt_node, opt_border, &*element_ref);
         }
     }
 

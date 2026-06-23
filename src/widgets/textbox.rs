@@ -5,7 +5,7 @@ use bevy::ui::RelativeCursorPosition;
 use bevy::text::TextLayoutInfo;
 
 
-use bevy::input_focus::{InputFocus, FocusCause};
+use bevy::input_focus::{InputFocus};
 use crate::widgets::{ RuiClipboard};
 use crate::widgets::scrollview::{RuiVerticalScrollbar, RuiHorizontalScrollbar};
 

@@ -44,7 +44,7 @@ pub fn spawn_window<'a>(
     let mut cmds = parent_cmd.spawn((
         s,
         ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::default() },
-        crate::theme::RuiThemeElement::Panel,
+        crate::theme::RuiThemeElement::Window,
         ZIndex(100),
         Interaction::None,
         Pickable::default(),

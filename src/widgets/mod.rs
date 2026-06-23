@@ -15,6 +15,7 @@ pub mod textbox;
 pub mod tabs;
 pub mod tooltip;
 pub mod windows;
+pub mod debug_colors;
 pub mod viewport;
 pub mod docks;
 pub mod slider;
@@ -164,6 +165,7 @@ impl Plugin for RuiWidgets {
         app.add_systems(Update, (
             crate::theme::apply_rui_theme,
             handle_button_colors,
+            //debug_colors::debug_list_item_colors,
             handle_checkbox_clicks,
             handle_accordion_clicks,
             dropdown::update_dropdown_positions,

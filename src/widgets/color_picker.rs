@@ -213,7 +213,8 @@ pub fn spawn_color_picker<'a>(
             GlobalZIndex(100),
             bevy::ui::FocusPolicy::Block,
             RelativeCursorPosition::default(),
-            RuiColorPickerPopup { picker_entity: picker_id }
+            RuiColorPickerPopup { picker_entity: picker_id },
+            crate::theme::RuiThemeElement::Window,
         )).with_children(|popup| {
             
             // Top Section: SV Area and Hue Bar
