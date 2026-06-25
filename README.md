@@ -3,6 +3,7 @@
 These are the 3 demos included. for the game demo you need the [kenney ui assets pack ](https://https://kenney-assets.itch.io/ui-pack)
 
 * the texture for the widgets are not finish.
+* if you want to support the project https://ko-fi.com/robertxy/goal?g=1
 
 ## Widgets
 
