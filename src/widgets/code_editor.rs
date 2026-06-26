@@ -532,6 +532,98 @@ pub fn handle_code_editor_input(
     }
 }
 
+use bevy::prelude::*;
+use syntect::easy::HighlightLines;
+use syntect::highlighting::Style;
+use syntect::util::LinesWithEndings;
+
+pub fn update_code_editor_visuals(
+    mut commands: Commands,
+    // Solo ejecutamos esto si el editor realmente cambió (eficiencia pura)
+    editor_query: Query<(Entity, &RuiCodeEditor, &Children), Changed<RuiCodeEditor>>,
+    mut text_query: Query<(Entity, &mut Text, &TextFont), With<RuiCodeEditorText>>,
+    mut gutter_query: Query<&mut Text, (With<RuiCodeEditorGutter>, Without<RuiCodeEditorText>)>,
+    children_query: Query<&Children>,
+    syntax_assets: Res<RuiSyntaxAssets>,
+) {
+    for (editor_entity, editor, children) in &editor_query {
+        
+        // 1. Encontrar los nodos de Gutter y Texto entre los hijos
+        let mut text_entity_opt = None;
+        let mut gutter_text_opt = None;
+
+        // Buscamos de forma recursiva en los hijos (simplificado)
+        for child in children.iter() {
+            if let Ok(grand_children) = children_query.get(*child) {
+                for grand_child in grand_children.iter() {
+                    if text_query.contains(*grand_child) {
+                        text_entity_opt = Some(*grand_child);
+                    }
+                    if gutter_query.contains(*grand_child) {
+                        gutter_text_opt = Some(*grand_child);
+                    }
+                }
+            }
+        }
+
+        // 2. Actualizar los números de línea (Gutter)
+        if let Some(gutter_entity) = gutter_text_opt {
+            if let Ok(mut gutter_text) = gutter_query.get_mut(gutter_entity) {
+                let total_lines = editor.text.len_lines();
+                let mut line_numbers = String::with_capacity(total_lines * 3);
+                for i in 1..=total_lines {
+                    line_numbers.push_str(&format!("{}\n", i));
+                }
+                **gutter_text = line_numbers; // En Bevy 0.15, mut Text se desreferencia a String
+            }
+        }
+
+        // 3. Procesar el texto con Syntect y generar TextSpans
+        if let Some(text_entity) = text_entity_opt {
+            if let Ok((entity, mut root_text, font)) = text_query.get_mut(text_entity) {
+                // Limpiar los hijos anteriores (spans viejos)
+                commands.entity(entity).despawn_descendants();
+                
+                // Bevy 0.15: El texto raíz queda vacío, todo el texto estará en los spans hijos
+                **root_text = String::new(); 
+
+                // Configurar Syntect para el lenguaje especificado
+                let syntax = syntax_assets.syntax_set.find_syntax_by_extension(&editor.language)
+                    .unwrap_or_else(|| syntax_assets.syntax_set.find_syntax_plain_text());
+                
+                let theme = &syntax_assets.theme_set.themes[&syntax_assets.default_theme];
+                let mut highlighter = HighlightLines::new(syntax, theme);
+
+                // Convertir el Rope a String temporalmente para iterar las líneas
+                // (Para archivos MUY grandes en el futuro, esto se optimiza procesando solo las líneas visibles)
+                let full_text = editor.text.to_string();
+
+                commands.entity(entity).with_children(|parent| {
+                    for line in LinesWithEndings::from(&full_text) {
+                        // Syntect nos devuelve una lista de (Estilo, Palabra)
+                        let ranges: Vec<(Style, &str)> = highlighter.highlight_line(line, &syntax_assets.syntax_set).unwrap();
+
+                        for (style, text_segment) in ranges {
+                            // Convertir el color de Syntect (RGBA) al Color de Bevy
+                            let color = Color::srgba_u8(style.foreground.r, style.foreground.g, style.foreground.b, style.foreground.a);
+                            
+                            // Spawnear el segmento de texto colorido
+                            parent.spawn((
+                                TextSpan::new(text_segment),
+                                TextFont {
+                                    font: font.font.clone(),
+                                    font_size: font.font_size,
+                                    ..default()
+                                },
+                                TextColor(color),
+                            ));
+                        }
+                    }
+                });
+            }
+        }
+    }
+}
 
 
 
