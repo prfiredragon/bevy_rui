@@ -554,13 +554,13 @@ pub fn update_code_editor_visuals(
 
         // Buscamos de forma recursiva en los hijos (simplificado)
         for child in children.iter() {
-            if let Ok(grand_children) = children_query.get(*child) {
+            if let Ok(grand_children) = children_query.get(child) {
                 for grand_child in grand_children.iter() {
-                    if text_query.contains(*grand_child) {
-                        text_entity_opt = Some(*grand_child);
+                    if text_query.contains(grand_child) {
+                        text_entity_opt = Some(grand_child);
                     }
-                    if gutter_query.contains(*grand_child) {
-                        gutter_text_opt = Some(*grand_child);
+                    if gutter_query.contains(grand_child) {
+                        gutter_text_opt = Some(grand_child);
                     }
                 }
             }
@@ -582,7 +582,7 @@ pub fn update_code_editor_visuals(
         if let Some(text_entity) = text_entity_opt {
             if let Ok((entity, mut root_text, font)) = text_query.get_mut(text_entity) {
                 // Limpiar los hijos anteriores (spans viejos)
-                commands.entity(entity).despawn_descendants();
+                commands.entity(entity).despawn();
                 
                 // Bevy 0.15: El texto raíz queda vacío, todo el texto estará en los spans hijos
                 **root_text = String::new(); 
