@@ -265,7 +265,7 @@ pub fn spawn_code_editor<'a>(
 
 use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::input::ButtonState;
-use crate::input_focus::InputFocus;
+use bevy::input_focus::{InputFocus};
 use crate::widgets::RuiClipboard;
 // Asegúrate de importar EditorState y RuiCodeEditor de donde los definiste
 
