@@ -85,8 +85,6 @@ pub trait RuiBuilderExt {
     
 }
 
-}
-
 impl RuiBuilderExt for ChildSpawnerCommands<'_> {
     fn vbox(&mut self, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_> {
         layout::spawn_vbox(self, modifier, children)
