@@ -25,7 +25,8 @@ jobs:
           wayland-protocols \
           pkg-config \
           libegl1-mesa-dev \
-          weston
+          weston\
+          alsa
     - name: Build
       run: cargo build --verbose
     - name: Run tests
