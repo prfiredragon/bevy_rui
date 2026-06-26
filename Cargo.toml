@@ -6,6 +6,9 @@ edition = "2024"
 [dependencies]
 arboard = { version = "3.6.1", features = ["wayland-data-control"] }
 bevy = "0.19.0"
+ropey = "1.6"
+syntect = { version = "5.2", default-features = false, features = ["default-syntaxes", "default-themes", "fancy-regex"] }
+
 bevy_camera = "0.19.0"
 #bevy_0181 = { package = "bevy", version = "0.18.1", default-features = true, optional = true}
 #bevy_0190 = { package = "bevy", version = "0.19.0-rc.3", default-features = true, optional = true }

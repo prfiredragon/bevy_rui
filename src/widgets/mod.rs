@@ -20,6 +20,7 @@ pub mod viewport;
 pub mod docks;
 pub mod slider;
 pub mod color_picker;
+pub mod code_editor;
 
 pub use accordion::*;
 pub use button::*;
@@ -38,6 +39,8 @@ pub use windows::*;
 pub use viewport::*;
 pub use docks::*;
 pub use color_picker::*;
+pub use code_editor::*;
+
 
 #[derive(Resource)]
 pub struct RuiDefaultFont(pub Handle<Font>);
@@ -78,6 +81,10 @@ pub trait RuiBuilderExt {
     fn dock_split_vertical(&mut self, top_height: Val, min_size: f32, modifier: impl FnOnce(&mut Node), top_children: impl FnOnce(&mut ChildSpawnerCommands), bottom_children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_>;
     fn dock_panel(&mut self, active_tab: usize, modifier: impl FnOnce(&mut Node), build_tabs: impl FnOnce(&mut RuiTabsBuilder)) -> EntityCommands<'_>;
     fn slider(&mut self, min: f32, max: f32, value: f32, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_>;
+    fn code_editor(&mut self, placeholder: &str, language: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'_>; 
+    
+}
+
 }
 
 impl RuiBuilderExt for ChildSpawnerCommands<'_> {
@@ -148,6 +155,10 @@ impl RuiBuilderExt for ChildSpawnerCommands<'_> {
     fn slider(&mut self, min: f32, max: f32, value: f32, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_> {
         slider::spawn_slider(self, min, max, value, modifier)
     }
+    fn code_editor(&mut self, placeholder: &str, language: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'_> {
+        code_editor::spawn_code_editor(self, placeholder, language, modifier)
+    }
+
 }
 
 pub trait RuiRootBuilderExt {
@@ -160,6 +171,7 @@ impl Plugin for RuiWidgets {
     fn build(&self, app: &mut App) {
         app.init_non_send::<RuiClipboard>();
         app.init_resource::<crate::theme::RuiTheme>();
+        app.init_resource::<RuiSyntaxAssets>(); 
         app.add_systems(Startup, color_picker::setup_color_picker_images);
         
         app.add_systems(Update, (
@@ -176,6 +188,8 @@ impl Plugin for RuiWidgets {
             handle_tab_close_clicks,
             handle_resizer_drag,
             handle_resizer_collapse_clicks,
+            handle_code_editor_input,
+            update_code_editor_visuals,
         ));
 
         app.add_systems(Update, (
