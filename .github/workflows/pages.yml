@@ -28,20 +28,14 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
+      # REEMPLAZA el bloque anterior de curl / binstall por esta Action oficial:
       - name: Install wasm-bindgen-cli
-        run: |
-          # Instala cargo-binstall de forma ultrarrápida
-          curl -L --proto '=https' --tlsv1.2 -sSf https://githubusercontent.com | sh
-          
-          # Descarga e instala el binario precompilado de wasm-bindgen-cli automáticamente
-          cargo binstall wasm-bindgen-cli --deploy-to-local --yes
+        uses: taiki-e/install-action@wasm-bindgen-cli
 
       - name: Build Example Executable to WASM
-        # Equivale a tu comando habitual pero apuntando al target de WebAssembly
         run: cargo build --example test --target wasm32-unknown-unknown --release
 
       - name: Generate JS Bindings for the Example
-        # Procesamos el .wasm generado en la carpeta de ejemplos de cargo
         run: |
           wasm-bindgen target/wasm32-unknown-unknown/release/examples/test.wasm --out-dir ./pkg --target web
 
