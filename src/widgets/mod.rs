@@ -187,7 +187,7 @@ impl Plugin for RuiWidgets {
             handle_resizer_drag,
             handle_resizer_collapse_clicks,
             handle_code_editor_input,
-            //update_code_editor_visuals,
+            update_code_editor_visuals,
         ));
 
         app.add_systems(Update, (
