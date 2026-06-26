@@ -263,6 +263,274 @@ pub fn spawn_code_editor<'a>(
     cmds
 }
 
+use bevy::input::keyboard::{Key, KeyboardInput};
+use bevy::input::ButtonState;
+use crate::input_focus::InputFocus;
+use crate::widgets::RuiClipboard;
+// Asegúrate de importar EditorState y RuiCodeEditor de donde los definiste
+
+pub fn handle_code_editor_input(
+    mut events: MessageReader<KeyboardInput>,
+    keys: Res<ButtonInput<KeyCode>>,
+    focus: Res<InputFocus>,
+    mut query: Query<&mut RuiCodeEditor>,
+    mut clipboard: NonSendMut<RuiClipboard>,
+) {
+    let Some(focused_entity) = focus.get() else { return };
+    let Ok(mut editor) = query.get_mut(focused_entity) else { return };
+
+    let ctrl = keys.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight, KeyCode::SuperLeft, KeyCode::SuperRight]);
+    let shift = keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
+
+    let mut changed_text = false;
+    let mut changed_cursor = false;
+    
+    // Con Rope, ya no clonamos todo el texto a un Vec<char>
+    let mut cursor = editor.cursor_index.clamp(0, editor.text.len_chars());
+    let old_cursor = cursor;
+    
+    let old_state = EditorState {
+        text: editor.text.clone(), // Rope es muy barato de clonar (comparte memoria inmutablemente)
+        cursor_index: editor.cursor_index,
+        selection: editor.selection,
+    };
+    let mut is_undo_redo = false;
+
+    // --- UNDO / REDO / COPY / CUT / SELECT ALL ---
+    if ctrl {
+        if keys.just_pressed(KeyCode::KeyZ) && !editor.readonly {
+            if let Some(state) = editor.undo_stack.pop() {
+                editor.redo_stack.push(old_state.clone());
+                editor.text = state.text;
+                cursor = state.cursor_index;
+                editor.selection = state.selection;
+                editor.selection_anchor = None;
+                changed_text = true;
+                is_undo_redo = true;
+            }
+        } else if keys.just_pressed(KeyCode::KeyY) && !editor.readonly {
+            if let Some(state) = editor.redo_stack.pop() {
+                editor.undo_stack.push(old_state.clone());
+                editor.text = state.text;
+                cursor = state.cursor_index;
+                editor.selection = state.selection;
+                editor.selection_anchor = None;
+                changed_text = true;
+                is_undo_redo = true;
+            }
+        }
+
+        if keys.just_pressed(KeyCode::KeyA) {
+            let len = editor.text.len_chars();
+            editor.selection_anchor = Some(0);
+            editor.selection = Some((0, len));
+            cursor = len;
+            changed_cursor = true;
+        }
+        if keys.just_pressed(KeyCode::KeyC) || (!editor.readonly && keys.just_pressed(KeyCode::KeyX)) {
+            if let Some((start, end)) = editor.selection {
+                let min = start.min(end);
+                let max = start.max(end);
+                // Rope permite extraer slices eficientemente
+                let copied_text = editor.text.slice(min..max).to_string(); 
+                clipboard.set_text(copied_text);
+                
+                if keys.just_pressed(KeyCode::KeyX) && !editor.readonly {
+                    editor.text.remove(min..max);
+                    cursor = min;
+                    editor.selection = None;
+                    editor.selection_anchor = None;
+                    changed_text = true;
+                }
+            }
+        }
+    }
+
+    // --- NAVEGACIÓN ---
+    let mut nav_pressed = false;
+    let max_chars = editor.text.len_chars();
+    
+    if keys.just_pressed(KeyCode::ArrowLeft) {
+        nav_pressed = true;
+        if !shift && editor.selection.is_some() {
+            let (start, end) = editor.selection.unwrap();
+            cursor = start.min(end);
+        } else if cursor > 0 { cursor -= 1; }
+    } else if keys.just_pressed(KeyCode::ArrowRight) {
+        nav_pressed = true;
+        if !shift && editor.selection.is_some() {
+            let (start, end) = editor.selection.unwrap();
+            cursor = start.max(end);
+        } else if cursor < max_chars { cursor += 1; }
+    } else if keys.just_pressed(KeyCode::ArrowUp) {
+        nav_pressed = true;
+        let current_line_idx = editor.text.char_to_line(cursor);
+        if current_line_idx > 0 {
+            let current_col = cursor - editor.text.line_to_char(current_line_idx);
+            let prev_line_char_idx = editor.text.line_to_char(current_line_idx - 1);
+            let prev_line_len = editor.text.line(current_line_idx - 1).len_chars() - 1; // -1 por el \n
+            cursor = prev_line_char_idx + current_col.min(prev_line_len.max(0));
+        } else { cursor = 0; }
+    } else if keys.just_pressed(KeyCode::ArrowDown) {
+        nav_pressed = true;
+        let current_line_idx = editor.text.char_to_line(cursor);
+        if current_line_idx + 1 < editor.text.len_lines() {
+            let current_col = cursor - editor.text.line_to_char(current_line_idx);
+            let next_line_char_idx = editor.text.line_to_char(current_line_idx + 1);
+            let next_line_len = editor.text.line(current_line_idx + 1).len_chars() - 1; 
+            cursor = next_line_char_idx + current_col.min(next_line_len.max(0));
+        } else { cursor = max_chars; }
+    } else if keys.just_pressed(KeyCode::Home) { 
+        nav_pressed = true; 
+        let line_idx = editor.text.char_to_line(cursor);
+        cursor = editor.text.line_to_char(line_idx);
+    } else if keys.just_pressed(KeyCode::End) { 
+        nav_pressed = true; 
+        let line_idx = editor.text.char_to_line(cursor);
+        let line_start = editor.text.line_to_char(line_idx);
+        let line_len = editor.text.line(line_idx).len_chars();
+        cursor = line_start + line_len.saturating_sub(1); // Excluir el salto de línea
+    }
+
+    if nav_pressed {
+        changed_cursor = true;
+        if shift {
+            if editor.selection.is_none() || editor.selection_anchor.is_none() { editor.selection_anchor = Some(old_cursor); }
+            let anchor = editor.selection_anchor.unwrap();
+            editor.selection = if anchor != cursor { Some((anchor, cursor)) } else { None };
+        } else {
+            editor.selection = None;
+            editor.selection_anchor = None;
+        }
+    }
+
+    // --- ESCRITURA Y EDICIÓN ---
+    if !editor.readonly {
+        // PEGAR (Paste)
+        if ctrl && keys.just_pressed(KeyCode::KeyV) {
+            if let Some(pasted_text) = clipboard.get_text() {
+                if let Some((start, end)) = editor.selection.take() {
+                    let min = start.min(end);
+                    editor.text.remove(min..start.max(end));
+                    cursor = min;
+                }
+                editor.text.insert(cursor, &pasted_text);
+                cursor += pasted_text.chars().count();
+                changed_text = true;
+            }
+        }
+
+        // TAB (Indentación de 4 espacios)
+        if keys.just_pressed(KeyCode::Tab) {
+            if let Some((start, end)) = editor.selection.take() {
+                let min = start.min(end);
+                editor.text.remove(min..start.max(end));
+                cursor = min;
+            }
+            editor.text.insert(cursor, "    ");
+            cursor += 4;
+            changed_text = true;
+        }
+
+        // ESCRITURA ESTÁNDAR
+        for event in events.read() {
+            if event.state == ButtonState::Pressed {
+                if let Key::Character(c) = &event.logical_key {
+                    if ctrl { continue; }
+                    let char_str = c.as_str();
+                    if !char_str.is_empty() && char_str != " " {
+                        if let Some((start, end)) = editor.selection.take() {
+                            let min = start.min(end);
+                            editor.text.remove(min..start.max(end));
+                            cursor = min;
+                        }
+                        editor.text.insert(cursor, char_str);
+                        cursor += char_str.chars().count();
+                        changed_text = true;
+                    }
+                }
+            }
+        }
+
+        // ENTER (Con Auto-indentación)
+        if keys.just_pressed(KeyCode::Enter) {
+            if let Some((start, end)) = editor.selection.take() {
+                let min = start.min(end);
+                editor.text.remove(min..start.max(end));
+                cursor = min;
+            }
+            
+            // Lógica de Auto-indentación
+            let current_line_idx = editor.text.char_to_line(cursor);
+            let line_slice = editor.text.line(current_line_idx);
+            let mut indent_spaces = String::new();
+            
+            for ch in line_slice.chars() {
+                if ch == ' ' || ch == '\t' { indent_spaces.push(ch); } 
+                else { break; }
+            }
+
+            editor.text.insert_char(cursor, '\n');
+            cursor += 1;
+            
+            if !indent_spaces.is_empty() {
+                editor.text.insert(cursor, &indent_spaces);
+                cursor += indent_spaces.chars().count();
+            }
+            changed_text = true;
+        }
+
+        // BORRADO (Backspace y Delete)
+        if keys.just_pressed(KeyCode::Backspace) {
+            if let Some((start, end)) = editor.selection.take() {
+                let min = start.min(end);
+                editor.text.remove(min..start.max(end));
+                cursor = min;
+                changed_text = true;
+            } else if cursor > 0 {
+                editor.text.remove((cursor - 1)..cursor);
+                cursor -= 1;
+                changed_text = true;
+            }
+        } else if keys.just_pressed(KeyCode::Delete) {
+            if let Some((start, end)) = editor.selection.take() {
+                let min = start.min(end);
+                editor.text.remove(min..start.max(end));
+                cursor = min;
+                changed_text = true;
+            } else if cursor < editor.text.len_chars() {
+                editor.text.remove(cursor..(cursor + 1));
+                changed_text = true;
+            }
+        } else if keys.just_pressed(KeyCode::Space) {
+            if let Some((start, end)) = editor.selection.take() {
+                let min = start.min(end);
+                editor.text.remove(min..start.max(end));
+                cursor = min;
+            }
+            editor.text.insert_char(cursor, ' ');
+            cursor += 1;
+            changed_text = true;
+        }
+    }
+
+    // --- ACTUALIZAR ESTADO ---
+    if changed_text || changed_cursor {
+        if changed_text {
+            if !is_undo_redo {
+                // Comparamos el Rope entero es O(1) si no cambiaron
+                if editor.text != old_state.text { 
+                    editor.undo_stack.push(old_state);
+                    if editor.undo_stack.len() > 50 { editor.undo_stack.remove(0); }
+                    editor.redo_stack.clear();
+                }
+            }
+        }
+        editor.cursor_index = cursor;
+        editor.show_cursor = true;
+        editor.cursor_timer.reset();
+    }
+}
 
 
 
