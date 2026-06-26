@@ -1,0 +1,64 @@
+name: Deploy Example to GitHub Pages
+
+on:
+  push:
+    branches: ["Test"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps:deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-bindgen-cli
+        run: |
+          # Instalación rápida del binario para no compilar desde cero
+          curl -L https://github.com | tar -xz
+          echo "$PWD/wasm-bindgen-0.2.92-x86_64-unknown-linux-musl" >> $GITHUB_PATH
+        # IMPORTANTE: Asegúrate de que 0.2.92 coincida con tu Cargo.toml
+
+      - name: Build Example Executable to WASM
+        # Equivale a tu comando habitual pero apuntando al target de WebAssembly
+        run: cargo build --example test --target wasm32-unknown-unknown --release
+
+      - name: Generate JS Bindings for the Example
+        # Procesamos el .wasm generado en la carpeta de ejemplos de cargo
+        run: |
+          wasm-bindgen target/wasm32-unknown-unknown/release/examples/test.wasm --out-dir ./pkg --target web
+
+      - name: Prepare Public Directory
+        # Creamos la carpeta final combinando tu HTML base y los archivos WASM generados
+        run: |
+          mkdir public
+          cp index.html public/
+          cp -r pkg public/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './public'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
