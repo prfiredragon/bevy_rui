@@ -26,7 +26,8 @@ jobs:
           pkg-config \
           libegl1-mesa-dev \
           weston\
-          libasound2-dev
+          libasound2-dev\
+          libudev-dev
     - name: Build
       run: cargo build --verbose
     - name: Run tests
