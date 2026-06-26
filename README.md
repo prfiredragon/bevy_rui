@@ -1,3 +1,5 @@
+[![Rust](https://github.com/prfiredragon/bevy_rui/actions/workflows/rust.yml/badge.svg)](https://github.com/prfiredragon/bevy_rui/actions/workflows/rust.yml)
+
 # bevy_rui
 
 These are the 3 demos included. for the game demo you need the [kenney ui assets pack ](https://https://kenney-assets.itch.io/ui-pack)
