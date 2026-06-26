@@ -37,7 +37,7 @@ jobs:
 
       - name: Generate JS Bindings for the Example
         run: |
-          wasm-bindgen target/wasm32-unknown-unknown/release/examples/test.wasm --out-dir ./pkg --target web
+          wasm-bindgen target/wasm32-unknown-unknown/release/examples/code_editor_demo.wasm --out-dir ./pkg --target web
 
       - name: Prepare Public Directory
         # Creamos la carpeta final combinando tu HTML base y los archivos WASM generados
