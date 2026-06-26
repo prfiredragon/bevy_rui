@@ -33,7 +33,7 @@ jobs:
         uses: taiki-e/install-action@wasm-bindgen-cli
 
       - name: Build Example Executable to WASM
-        run: cargo build --example test --target wasm32-unknown-unknown --release
+        run: cargo build --example code_editor_demo --target wasm32-unknown-unknown --release
 
       - name: Generate JS Bindings for the Example
         run: |
