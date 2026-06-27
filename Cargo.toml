@@ -3,9 +3,10 @@ name = "bevy_rui"
 version = "0.1.4"
 edition = "2024"
 
-[dependencies]
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 arboard = { version = "3.6.1", features = ["wayland-data-control"] }
+
+[dependencies]
 bevy = "0.19.0"
 ropey = "1.6"
 syntect = { version = "5.2", default-features = false, features = ["default-syntaxes", "default-themes", "regex-fancy"] }
