@@ -275,6 +275,7 @@ pub fn handle_code_editor_input(
     keys: Res<ButtonInput<KeyCode>>,
     focus: Res<InputFocus>,
     mut query: Query<&mut RuiCodeEditor>,
+    #[cfg(not(target_arch = "wasm32"))]
     mut clipboard: NonSendMut<RuiClipboard>,
 ) {
     let Some(focused_entity) = focus.get() else { return };
@@ -334,6 +335,7 @@ pub fn handle_code_editor_input(
                 let max = start.max(end);
                 // Rope permite extraer slices eficientemente
                 let copied_text = editor.text.slice(min..max).to_string(); 
+                #[cfg(not(target_arch = "wasm32"))]
                 clipboard.set_text(copied_text);
                 
                 if keys.just_pressed(KeyCode::KeyX) && !editor.readonly {
