@@ -169,6 +169,7 @@ pub struct RuiWidgets;
 
 impl Plugin for RuiWidgets {
     fn build(&self, app: &mut App) {
+        #[cfg(not(target_arch = "wasm32"))]
         app.init_non_send::<RuiClipboard>();
         app.init_resource::<crate::theme::RuiTheme>();
         app.init_resource::<RuiSyntaxAssets>(); 
