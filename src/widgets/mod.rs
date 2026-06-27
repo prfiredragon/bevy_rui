@@ -3,6 +3,7 @@ use bevy::prelude::*;
 pub mod accordion;
 pub mod button;
 pub mod checkbox;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod clipboard;
 pub mod dropdown;
 pub mod file_dialog;
@@ -25,6 +26,7 @@ pub mod code_editor;
 pub use accordion::*;
 pub use button::*;
 pub use checkbox::*;
+#[cfg(not(target_arch = "wasm32"))]
 pub use clipboard::*;
 pub use dropdown::*;
 pub use label::*;
