@@ -331,6 +331,7 @@ pub fn handle_textbox_input(
 
     if !textbox.readonly {
         if ctrl && keys.just_pressed(KeyCode::KeyV) {
+            #[cfg(not(target_arch = "wasm32"))]
             if let Some(pasted_text) = clipboard.get_text() {
                 if let Some((start, end)) = textbox.selection.take() {
                     let min = start.min(end);
