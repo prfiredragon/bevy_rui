@@ -411,6 +411,7 @@ pub fn handle_code_editor_input(
     if !editor.readonly {
         // PEGAR (Paste)
         if ctrl && keys.just_pressed(KeyCode::KeyV) {
+            #[cfg(not(target_arch = "wasm32"))]
             if let Some(pasted_text) = clipboard.get_text() {
                 if let Some((start, end)) = editor.selection.take() {
                     let min = start.min(end);
