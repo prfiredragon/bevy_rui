@@ -266,6 +266,7 @@ pub fn spawn_code_editor<'a>(
 use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::input::ButtonState;
 use bevy::input_focus::{InputFocus};
+#[cfg(not(target_arch = "wasm32"))]
 use crate::widgets::RuiClipboard;
 // Asegúrate de importar EditorState y RuiCodeEditor de donde los definiste
 
