@@ -6,6 +6,7 @@ use bevy::text::TextLayoutInfo;
 
 
 use bevy::input_focus::{InputFocus};
+#[cfg(not(target_arch = "wasm32"))]
 use crate::widgets::{ RuiClipboard};
 use crate::widgets::scrollview::{RuiVerticalScrollbar, RuiHorizontalScrollbar};
 
