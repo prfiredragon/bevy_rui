@@ -99,6 +99,7 @@ fn main() {
                 main_workspace.code_editor(codigo_inicial, "rs", |s, font, _color| {
                     s.flex_grow = 1.0;
                     s.height = Val::Percent(100.0);
+                    font.font = bevy::prelude::FontSource::Handle(asset_server.load("fonts/FiraMono-Medium.ttf"));
                     font.font_size = FontSize::Px(18.0); // Tamaño ideal para lectura de código
                 });
 
