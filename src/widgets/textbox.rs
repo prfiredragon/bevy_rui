@@ -210,6 +210,7 @@ pub fn handle_textbox_input(
     keys: Res<ButtonInput<KeyCode>>,
     focus: Res<InputFocus>,
     mut query: Query<&mut RuiTextBox>,
+    #[cfg(not(target_arch = "wasm32"))]
     mut clipboard: NonSendMut<RuiClipboard>,
 ) {
     let Some(focused_entity) = focus.get() else { return };
@@ -267,7 +268,9 @@ pub fn handle_textbox_input(
                 let (start, end) = textbox.selection.unwrap_or((0, current_chars.len()));
                 let min = start.min(end);
                 let max = start.max(end);
+                #[cfg(not(target_arch = "wasm32"))]
                 let copied_text: String = current_chars[min..max].iter().collect();
+                #[cfg(not(target_arch = "wasm32"))]
                 clipboard.set_text(copied_text);
                 
                 if keys.just_pressed(KeyCode::KeyX) && !textbox.readonly {
@@ -329,6 +332,7 @@ pub fn handle_textbox_input(
 
     if !textbox.readonly {
         if ctrl && keys.just_pressed(KeyCode::KeyV) {
+            #[cfg(not(target_arch = "wasm32"))]
             if let Some(pasted_text) = clipboard.get_text() {
                 if let Some((start, end)) = textbox.selection.take() {
                     let min = start.min(end);
