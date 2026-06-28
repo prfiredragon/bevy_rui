@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bevy Code Editor Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; /* Fundamental para interfaces UI: evita barras de scroll */
+            background-color: #1e1e1e; /* Fondo oscuro mientras carga Bevy */
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="bevy"></canvas>
+
+    <script type="module">
+        // Importamos la función de inicialización del archivo JS que generó wasm-bindgen.
+        // Fíjate que el nombre coincide exactamente con el de tu --example
+        import init from './pkg/code_editor_demo.js';
+
+        // Ejecutamos la inicialización
+        init().catch((error) => {
+            // Bevy en WASM a veces lanza una excepción intencional para detener la ejecución
+            // de la promesa. La ignoramos para no ensuciar la consola.
+            if (!error.message.startsWith("Using exceptions for control flow")) {
+                console.error("Error al inicializar WASM:", error);
+            }
+        });
+    </script>
+</body>
+</html>

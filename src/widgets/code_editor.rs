@@ -2,6 +2,8 @@ use bevy::prelude::*;
 use syntect::parsing::SyntaxSet;
 use syntect::highlighting::ThemeSet;
 
+use bevy::text::TextLayoutInfo;
+
 #[derive(Resource)]
 pub struct RuiSyntaxAssets {
     pub syntax_set: SyntaxSet,
@@ -78,7 +80,7 @@ impl Default for RuiCodeEditor {
 }
 
 
-use bevy::prelude::*;
+
 use bevy::ui::RelativeCursorPosition;
 
 // Componentes marcadores específicos para el Code Editor
@@ -98,18 +100,17 @@ pub struct RuiCodeEditorCursor;
 
 pub fn spawn_code_editor<'a>(
     parent_cmd: &'a mut ChildSpawnerCommands,
-    placeholder: &str,
+    initial_text: &str, // <-- Ahora es el texto inicial
     language: &str,
     modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor),
 ) -> EntityCommands<'a> {
-    // 1. Configuración del Contenedor Raíz (Row)
     let mut root_node = Node {
         display: Display::Flex,
         flex_direction: FlexDirection::Row,
-        min_height: Val::Px(200.0), // Un code editor suele ser más grande
+        min_height: Val::Px(200.0),
         min_width: Val::Px(300.0),
         border: UiRect::all(Val::Px(2.0)),
-        overflow: Overflow::clip(), // Esencial para esconder lo que desborda
+        overflow: Overflow::clip(),
         ..default()
     };
     
@@ -123,46 +124,40 @@ pub fn spawn_code_editor<'a>(
         crate::focus::Focusable,
         bevy::ui::FocusPolicy::Block,
         Pickable::default(),
-        ImageNode { 
-            visual_box: bevy::ui::VisualBox::BorderBox, 
-            image_mode: bevy::ui::widget::NodeImageMode::Stretch, 
-            ..ImageNode::default() 
-        },
-        crate::theme::RuiThemeElement::TextboxBg, // Puedes crear un ThemeElement::CodeEditorBg luego
+        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::default() },
+        crate::theme::RuiThemeElement::TextboxBg,
         BorderColor::all(Color::srgb(0.051, 0.051, 0.051)),
         RelativeCursorPosition::default(),
         RuiCodeEditor { 
-            placeholder: placeholder.to_string(), 
+            text: ropey::Rope::from_str(initial_text), // <-- ¡Cargamos el código aquí!
             language: language.to_string(),
             ..default() 
         },
     ));
 
     cmds.with_children(|parent| {
-        
         // --- PANEL IZQUIERDO: EL GUTTER ---
         parent.spawn((
             Node {
                 display: Display::Flex,
                 flex_direction: FlexDirection::Column,
-                width: Val::Px(45.0), // Ancho inicial para los números
+                width: Val::Px(50.0),
                 height: Val::Percent(100.0),
-                align_items: AlignItems::FlexEnd, // Alinea los números a la derecha
-                padding: UiRect::right(Val::Px(8.0)), // Separación con el código
+                align_items: AlignItems::FlexEnd,
+                padding: UiRect::right(Val::Px(8.0)),
                 overflow: Overflow::clip(),
                 ..default()
             },
-            // Color de fondo ligeramente más claro/oscuro para diferenciar el gutter
             BackgroundColor(Color::srgb(0.08, 0.08, 0.08)), 
         )).with_children(|gutter| {
             gutter.spawn((
-                Text::new("1"), // Iniciamos con la línea 1
+                Text::new("1"),
                 font.clone(),
-                TextColor(Color::srgb(0.4, 0.4, 0.4)), // Gris atenuado
+                TextColor(Color::srgb(0.4, 0.4, 0.4)),
                 RuiCodeEditorGutter,
                 Node {
                     position_type: PositionType::Absolute,
-                    top: Val::Px(12.0), // Mismo padding top que el área de código
+                    top: Val::Px(12.0),
                     ..default()
                 },
                 Pickable::IGNORE,
@@ -173,16 +168,15 @@ pub fn spawn_code_editor<'a>(
         parent.spawn((
             Node {
                 display: Display::Flex,
-                flex_grow: 1.0, // Toma todo el espacio restante
+                flex_grow: 1.0,
                 height: Val::Percent(100.0),
                 position_type: PositionType::Relative,
                 overflow: Overflow::clip(),
                 ..default()
             },
         )).with_children(|editor_area| {
-            // El Texto Principal (Donde inyectaremos los TextSpans)
             editor_area.spawn((
-                Text::new(placeholder),
+                Text::new(""),
                 font,
                 color,
                 RuiCodeEditorText,
@@ -195,66 +189,20 @@ pub fn spawn_code_editor<'a>(
                 Pickable::IGNORE,
             ));
 
-            // Cursor
+            // Cursor físico
             editor_area.spawn((
                 Node {
                     position_type: PositionType::Absolute,
-                    width: Val::Px(2.0),
+                    width: Val::Px(3.0),
                     height: Val::Px(20.0),
                     left: Val::Px(12.0),
                     top: Val::Px(12.0),
                     ..default()
                 },
-                ImageNode::solid_color(Color::WHITE),
+                //ImageNode::solid_color(Color::WHITE),
+                BackgroundColor(Color::WHITE),
                 Visibility::Hidden,
                 RuiCodeEditorCursor,
-                Pickable::IGNORE,
-            ));
-
-            // Highlight de Selección
-            editor_area.spawn((
-                Node {
-                    position_type: PositionType::Absolute,
-                    left: Val::Px(12.0),
-                    top: Val::Px(12.0),
-                    width: Val::Px(0.0),
-                    height: Val::Px(20.0),
-                    ..default()
-                },
-                ImageNode::solid_color(Color::srgba(0.2, 0.4, 0.8, 0.5)),
-                Visibility::Hidden,
-                RuiCodeEditorSelection,
-                Pickable::IGNORE,
-            ));
-
-            // Scrollbars (Reutilizando tus componentes)
-            editor_area.spawn((
-                Node {
-                    position_type: PositionType::Absolute,
-                    right: Val::Px(2.0),
-                    top: Val::Px(2.0),
-                    width: Val::Px(6.0),
-                    height: Val::Percent(0.0),
-                    ..default()
-                },
-                ImageNode::solid_color(Color::srgba(0.8, 0.8, 0.8, 0.5)),
-                Visibility::Hidden,
-                crate::widgets::scrollview::RuiVerticalScrollbar,
-                Pickable::IGNORE,
-            ));
-            
-            editor_area.spawn((
-                Node {
-                    position_type: PositionType::Absolute,
-                    left: Val::Px(2.0),
-                    bottom: Val::Px(2.0),
-                    width: Val::Percent(0.0),
-                    height: Val::Px(6.0),
-                    ..default()
-                },
-                ImageNode::solid_color(Color::srgba(0.8, 0.8, 0.8, 0.5)),
-                Visibility::Hidden,
-                crate::widgets::scrollview::RuiHorizontalScrollbar,
                 Pickable::IGNORE,
             ));
         });
@@ -536,100 +484,236 @@ pub fn handle_code_editor_input(
     }
 }
 
-use bevy::prelude::*;
+
 use syntect::easy::HighlightLines;
 use syntect::highlighting::Style;
 use syntect::util::LinesWithEndings;
 
+
+
 pub fn update_code_editor_visuals(
     mut commands: Commands,
-    // Solo ejecutamos esto si el editor realmente cambió (eficiencia pura)
-    editor_query: Query<(Entity, &RuiCodeEditor, &Children), Changed<RuiCodeEditor>>,
-    mut text_query: Query<(Entity, &mut Text, &TextFont), With<RuiCodeEditorText>>,
-    mut gutter_query: Query<&mut Text, (With<RuiCodeEditorGutter>, Without<RuiCodeEditorText>)>,
+    time: Res<Time>,
+    focus: Res<InputFocus>,
+    mut editor_query: Query<(Entity, &mut RuiCodeEditor, &Children, &ComputedNode)>, 
+    mut text_query: Query<(Entity, &mut Text, &TextFont, &mut Node, Option<&TextLayoutInfo>), With<RuiCodeEditorText>>,
+    mut gutter_query: Query<(&mut Text, &mut Node), (With<RuiCodeEditorGutter>, Without<RuiCodeEditorText>)>,
+    mut cursor_query: Query<(&mut Node, &mut Visibility), (With<RuiCodeEditorCursor>, Without<RuiCodeEditorText>, Without<RuiCodeEditorGutter>)>,
     children_query: Query<&Children>,
     syntax_assets: Res<RuiSyntaxAssets>,
 ) {
-    for (editor_entity, editor, children) in &editor_query {
-        
-        // 1. Encontrar los nodos de Gutter y Texto entre los hijos
-        let mut text_entity_opt = None;
-        let mut gutter_text_opt = None;
+    for (editor_entity, mut editor, children, _computed) in &mut editor_query {
+        let is_focused = focus.get() == Some(editor_entity);
 
-        // Buscamos de forma recursiva en los hijos (simplificado)
-        for child in children.iter() {
+        if is_focused {
+            editor.cursor_timer.tick(time.delta());
+            if editor.cursor_timer.just_finished() {
+                editor.show_cursor = !editor.show_cursor;
+            }
+        } else {
+            editor.show_cursor = false;
+        }
+
+        let mut text_ent_opt = None;
+        let mut gutter_ent_opt = None;
+        let mut cursor_ent_opt = None;
+
+        for &child in children {
             if let Ok(grand_children) = children_query.get(child) {
-                for grand_child in grand_children.iter() {
-                    if text_query.contains(grand_child) {
-                        text_entity_opt = Some(grand_child);
-                    }
-                    if gutter_query.contains(grand_child) {
-                        gutter_text_opt = Some(grand_child);
-                    }
+                for &grand_child in grand_children {
+                    if text_query.contains(grand_child) { text_ent_opt = Some(grand_child); }
+                    if gutter_query.contains(grand_child) { gutter_ent_opt = Some(grand_child); }
+                    if cursor_query.contains(grand_child) { cursor_ent_opt = Some(grand_child); }
                 }
             }
         }
 
-        // 2. Actualizar los números de línea (Gutter)
-        if let Some(gutter_entity) = gutter_text_opt {
-            if let Ok(mut gutter_text) = gutter_query.get_mut(gutter_entity) {
-                let total_lines = editor.text.len_lines();
-                let mut line_numbers = String::with_capacity(total_lines * 3);
+        let font_size = 18.0; 
+        let total_lines = editor.text.len_lines().max(1);
+        let text_layout_info = text_ent_opt.and_then(|e| text_query.get(e).ok()).and_then(|(_, _, _, _, layout)| layout);
+
+        // 1. ALTO DE LÍNEA EXACTO (Elimina el desvío vertical al bajar)
+        let line_height = if let Some(layout) = text_layout_info {
+            if layout.size.y > 0.0 {
+                layout.size.y / total_lines as f32
+            } else {
+                font_size * 1.2
+            }
+        } else {
+            font_size * 1.2
+        };
+
+        // 2. ANCHO DE CARÁCTER EXACTO (Elimina el desvío horizontal)
+        // Contamos el máximo de caracteres por línea EXCLUYENDO los '\n' o '\r' invisibles
+        let max_visible_chars = editor.text
+            .lines()
+            .map(|line| line.chars().filter(|&c| c != '\n' && c != '\r').count())
+            .max()
+            .unwrap_or(1)
+            .max(1);
+
+        let avg_char_w = if let Some(layout) = text_layout_info {
+            if layout.size.x > 0.0 {
+                layout.size.x / max_visible_chars as f32
+            } else {
+                font_size * 0.55
+            }
+        } else {
+            font_size * 0.55
+        };
+
+        // Calcular posiciones del cursor basadas en los valores reales extraídos de Bevy
+        let cursor_index = editor.cursor_index.clamp(0, editor.text.len_chars());
+        let line_idx = editor.text.char_to_line(cursor_index);
+        let line_start_char = editor.text.line_to_char(line_idx);
+        let col_idx = cursor_index - line_start_char;
+
+        let cursor_x = col_idx as f32 * avg_char_w;
+        let cursor_y = line_idx as f32 * line_height;
+
+        // Gutter (Números de línea)
+        if let Some(gutter_ent) = gutter_ent_opt {
+            if let Ok((mut gutter_text, mut gutter_node)) = gutter_query.get_mut(gutter_ent) {
+                let mut line_numbers = String::new();
                 for i in 1..=total_lines {
                     line_numbers.push_str(&format!("{}\n", i));
                 }
-                **gutter_text = line_numbers; // En Bevy 0.15, mut Text se desreferencia a String
+                gutter_text.0 = line_numbers;
+                gutter_node.top = Val::Px(12.0 - editor.scroll_offset.y);
             }
         }
 
-        // 3. Procesar el texto con Syntect y generar TextSpans
-        if let Some(text_entity) = text_entity_opt {
-            if let Ok((entity, mut root_text, font)) = text_query.get_mut(text_entity) {
-                // Limpiar los hijos anteriores (spans viejos)
-                commands.entity(entity).despawn();
-                
-                // Bevy 0.15: El texto raíz queda vacío, todo el texto estará en los spans hijos
-                **root_text = String::new(); 
+        // Cursor Físico
+        if let Some(cursor_ent) = cursor_ent_opt {
+            if let Ok((mut c_node, mut c_vis)) = cursor_query.get_mut(cursor_ent) {
+                if is_focused && editor.show_cursor {
+                    *c_vis = Visibility::Visible;
+                    c_node.left = Val::Px(12.0 + cursor_x - editor.scroll_offset.x);
+                    c_node.top = Val::Px(12.0 + cursor_y - editor.scroll_offset.y);
+                    c_node.width = Val::Px(3.0); 
+                    c_node.height = Val::Px(line_height);
+                } else {
+                    *c_vis = Visibility::Hidden;
+                }
+            }
+        }
 
-                // Configurar Syntect para el lenguaje especificado
-                let syntax = syntax_assets.syntax_set.find_syntax_by_extension(&editor.language)
-                    .unwrap_or_else(|| syntax_assets.syntax_set.find_syntax_plain_text());
-                
-                let theme = &syntax_assets.theme_set.themes[&syntax_assets.default_theme];
-                let mut highlighter = HighlightLines::new(syntax, theme);
+        // Renderizar el Texto
+        if editor.is_changed() {
+            if let Some(text_ent) = text_ent_opt {
+                if let Ok((entity, mut root_text, font, mut text_node, _)) = text_query.get_mut(text_ent) {
+                    commands.entity(entity).detach_all_children();
+                    root_text.0 = String::new(); 
 
-                // Convertir el Rope a String temporalmente para iterar las líneas
-                // (Para archivos MUY grandes en el futuro, esto se optimiza procesando solo las líneas visibles)
-                let full_text = editor.text.to_string();
+                    text_node.left = Val::Px(12.0 - editor.scroll_offset.x);
+                    text_node.top = Val::Px(12.0 - editor.scroll_offset.y);
 
-                commands.entity(entity).with_children(|parent| {
-                    for line in LinesWithEndings::from(&full_text) {
-                        // Syntect nos devuelve una lista de (Estilo, Palabra)
-                        let ranges: Vec<(Style, &str)> = highlighter.highlight_line(line, &syntax_assets.syntax_set).unwrap();
+                    let syntax = syntax_assets.syntax_set.find_syntax_by_extension(&editor.language)
+                        .unwrap_or_else(|| syntax_assets.syntax_set.find_syntax_plain_text());
+                    let theme = &syntax_assets.theme_set.themes[&syntax_assets.default_theme];
+                    let mut highlighter = HighlightLines::new(syntax, theme);
+                    let full_text = editor.text.to_string();
 
-                        for (style, text_segment) in ranges {
-                            // Convertir el color de Syntect (RGBA) al Color de Bevy
-                            let color = Color::srgba_u8(style.foreground.r, style.foreground.g, style.foreground.b, style.foreground.a);
-                            
-                            // Spawnear el segmento de texto colorido
-                            parent.spawn((
-                                TextSpan::new(text_segment),
-                                TextFont {
-                                    font: font.font.clone(),
-                                    font_size: font.font_size,
-                                    ..default()
-                                },
-                                TextColor(color),
-                            ));
+                    commands.entity(entity).with_children(|parent| {
+                        for line in LinesWithEndings::from(&full_text) {
+                            let ranges: Vec<(Style, &str)> = highlighter.highlight_line(line, &syntax_assets.syntax_set).unwrap();
+                            for (style, text_segment) in ranges {
+                                let color = Color::srgba_u8(style.foreground.r, style.foreground.g, style.foreground.b, style.foreground.a);
+                                parent.spawn((
+                                    TextSpan::new(text_segment),
+                                    TextFont { font: font.font.clone(), font_size: font.font_size, ..default() },
+                                    TextColor(color),
+                                ));
+                            }
                         }
-                    }
-                });
+                    });
+                }
             }
         }
     }
 }
 
 
+pub fn handle_code_editor_clicks(
+    mouse: Res<ButtonInput<MouseButton>>,
+    focus: Res<InputFocus>,
+    mut editor_query: Query<(Entity, &RelativeCursorPosition, &Interaction, &ComputedNode, &Children, &mut RuiCodeEditor)>,
+    text_query: Query<(&TextFont, Option<&TextLayoutInfo>), With<RuiCodeEditorText>>,
+    children_query: Query<&Children>,
+) {
+    let Some(focused_entity) = focus.get() else { return; };
+    if let Ok((_, rel_pos, interaction, parent_comp, children, mut editor)) = editor_query.get_mut(focused_entity) {
+        if !mouse.pressed(MouseButton::Left) { 
+            editor.dragging_v_scroll = false; 
+            editor.dragging_h_scroll = false; 
+            return; 
+        }
+        if let Some(pos) = rel_pos.normalized {
+            let size = parent_comp.size();
+            let (lx, ly) = ((pos.x + 0.5) * size.x, (pos.y + 0.5) * size.y);
+            
+            if lx < 50.0 { return; } // Ignorar clic en el gutter
+            let local_code_x = lx - 50.0;
+
+            let mut text_layout_opt = None;
+            for &child in children {
+                if let Ok(grand_children) = children_query.get(child) {
+                    for &grand_child in grand_children {
+                        if let Ok((_, layout)) = text_query.get(grand_child) {
+                            text_layout_opt = layout;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            let font_size = 18.0; 
+            let total_lines = editor.text.len_lines().max(1);
+            
+            // Extraemos los mismos tamaños exactos calculados por Bevy
+            let text_w = text_layout_opt.map_or(0.0, |l| l.size.x);
+            let text_h = text_layout_opt.map_or(0.0, |l| l.size.y);
+            
+            let line_h = if text_h > 0.0 { text_h / total_lines as f32 } else { font_size * 1.2 };
+            
+            let max_visible_chars = editor.text
+                .lines()
+                .map(|line| line.chars().filter(|&c| c != '\n' && c != '\r').count())
+                .max()
+                .unwrap_or(1)
+                .max(1);
+                
+            let avg_w = if text_w > 0.0 { text_w / max_visible_chars as f32 } else { font_size * 0.55 };
+            
+            let tx = local_code_x - 12.0 + editor.scroll_offset.x;
+            let ty = ly - 12.0 + editor.scroll_offset.y;
+            
+            let target_line = ((ty / line_h).floor() as usize).min(total_lines - 1);
+            let line_start_char = editor.text.line_to_char(target_line);
+            let line_len = editor.text.line(target_line).len_chars();
+            
+            let clean_line_len = if target_line < total_lines - 1 && line_len > 0 {
+                line_len.saturating_sub(1)
+            } else {
+                line_len
+            };
+            
+            let target_col = ((tx / avg_w).round() as usize).min(clean_line_len);
+            let clicked_idx = line_start_char + target_col;
+            
+            if mouse.just_pressed(MouseButton::Left) && *interaction == Interaction::Pressed {
+                editor.selection_anchor = Some(clicked_idx);
+                editor.cursor_index = clicked_idx;
+                editor.selection = None;
+            } else if let Some(anchor) = editor.selection_anchor {
+                editor.cursor_index = clicked_idx;
+                editor.selection = if anchor != clicked_idx { Some((anchor, clicked_idx)) } else { None };
+            }
+            editor.show_cursor = true;
+            editor.cursor_timer.reset();
+        }
+    }
+}
 
 
 

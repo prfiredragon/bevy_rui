@@ -191,6 +191,7 @@ impl Plugin for RuiWidgets {
             handle_resizer_collapse_clicks,
             handle_code_editor_input,
             update_code_editor_visuals,
+            handle_code_editor_clicks.after(crate::focus::sync_mouse_to_focus),
         ));
 
         app.add_systems(Update, (
