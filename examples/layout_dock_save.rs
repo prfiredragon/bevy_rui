@@ -313,10 +313,10 @@ fn handle_buttons(
                 
                 match trigger {
                     DialogTrigger::Open => {
-                        spawn_file_dialog(parent, "Open File", FileDialogMode::Open, start_path.clone(), filters.clone());
+                        spawn_file_dialog(parent, "Open File", FileDialogMode::Open, start_path.clone(), None, filters.clone());
                     }
                     DialogTrigger::Save => {
-                        spawn_file_dialog(parent, "Save File", FileDialogMode::Save, start_path.clone(), filters.clone());
+                        spawn_file_dialog(parent, "Save File", FileDialogMode::Save, start_path.clone(), Some(start_path.clone()), filters.clone());
                     }
                 }
             });

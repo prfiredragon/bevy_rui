@@ -110,7 +110,7 @@ fn handle_buttons(
 
             // Para invocar el explorador de archivos, lo enganchamos al rui_root principal.
             commands.entity(root_entity).with_children(|ui| {
-                spawn_file_dialog(ui, title, mode, start_dir, vec![]);
+                spawn_file_dialog(ui, title, mode, start_dir, None, vec![]);
             });
         }
     }

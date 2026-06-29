@@ -27,6 +27,7 @@ pub struct RuiFileDialog {
     pub list_container: Entity,
     pub textbox_entity: Entity,
     pub needs_refresh: bool,
+    pub root_dir: Option<PathBuf>,
 }
 
 #[derive(Component, Clone)]
@@ -63,6 +64,7 @@ pub fn spawn_file_dialog<'a>(
     title: &str,
     mode: FileDialogMode,
     start_dir: PathBuf,
+    root_dir: Option<PathBuf>,
     filters: Vec<FileFilter>,
 ) -> EntityCommands<'a> {
     let mut list_container_entity = Entity::PLACEHOLDER;
@@ -174,6 +176,7 @@ pub fn spawn_file_dialog<'a>(
         list_container: list_container_entity,
         textbox_entity,
         needs_refresh: true,
+        root_dir,
     });
     
     window_cmds
@@ -470,8 +473,16 @@ pub fn handle_dialog_buttons(
                 match action {
                     DialogButtonAction::UpDir(_) => {
                         if let Some(parent_dir) = dialog.current_dir.parent() {
-                            dialog.current_dir = parent_dir.to_path_buf();
-                            dialog.needs_refresh = true;
+                            let can_go_up = if let Some(ref root) = dialog.root_dir {
+                                parent_dir.starts_with(root)
+                            } else {
+                                true
+                            };
+                            
+                            if can_go_up {
+                                dialog.current_dir = parent_dir.to_path_buf();
+                                dialog.needs_refresh = true;
+                            }
                         }
                     }
                     DialogButtonAction::Confirm(_) => {
