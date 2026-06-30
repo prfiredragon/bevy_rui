@@ -18,6 +18,7 @@ pub mod tooltip;
 pub mod windows;
 pub mod debug_colors;
 pub mod viewport;
+pub mod canvas_layer;
 pub mod docks;
 pub mod slider;
 pub mod color_picker;
@@ -84,7 +85,7 @@ pub trait RuiBuilderExt {
     fn dock_panel(&mut self, active_tab: usize, modifier: impl FnOnce(&mut Node), build_tabs: impl FnOnce(&mut RuiTabsBuilder)) -> EntityCommands<'_>;
     fn slider(&mut self, min: f32, max: f32, value: f32, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_>;
     fn code_editor(&mut self, placeholder: &str, language: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'_>; 
-    
+    fn canvas_layer(&mut self, camera_entity: Entity, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_>;
 }
 
 impl RuiBuilderExt for ChildSpawnerCommands<'_> {
@@ -142,6 +143,9 @@ impl RuiBuilderExt for ChildSpawnerCommands<'_> {
     }
     fn viewport(&mut self, camera_entity: Entity, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_> {
         viewport::spawn_viewport(self, camera_entity, modifier)
+    }
+    fn canvas_layer(&mut self, camera_entity: Entity, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_> {
+        canvas_layer::spawn_canvas_layer(self, camera_entity, modifier, children)
     }
     fn dock_split_horizontal(&mut self, left_width: Val, min_size: f32, modifier: impl FnOnce(&mut Node), left_children: impl FnOnce(&mut ChildSpawnerCommands), right_children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_> {
         docks::spawn_dock_split_horizontal(self, left_width, min_size, modifier, left_children, right_children)
