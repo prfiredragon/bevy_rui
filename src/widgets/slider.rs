@@ -66,6 +66,7 @@ pub fn spawn_slider<'a>(
                 ..default()
             },
             ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.1, 0.1, 0.1)) },
+            crate::theme::RuiThemeElement::SliderTrack,
             Interaction::None,
         ));
         
@@ -79,7 +80,8 @@ pub fn spawn_slider<'a>(
                 border_radius: BorderRadius::all(Val::Px(3.0)),
                 ..default()
             },
-            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.4, 0.6, 1.0)) }, // Default, can be themed later
+            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.4, 0.6, 1.0)) },
+            crate::theme::RuiThemeElement::ProgressBarFill,
             RuiSliderFill { slider_entity: slider_id },
             Interaction::None,
         ));
@@ -95,6 +97,7 @@ pub fn spawn_slider<'a>(
                 ..default()
             },
             ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.9, 0.9, 0.9)) }, // Default color
+            crate::theme::RuiThemeElement::SliderHandle,
             Interaction::None,
             Pickable::default(),
             bevy::ui::FocusPolicy::Pass,

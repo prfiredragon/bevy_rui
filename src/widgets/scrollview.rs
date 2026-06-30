@@ -52,7 +52,9 @@ pub fn spawn_scrollview<'a>(
             )).with_children(children);
 
             parent.spawn((
-                Node { position_type: PositionType::Absolute, right: Val::Px(0.0), top: Val::Px(0.0), width: Val::Px(12.0), height: Val::Percent(100.0), justify_content: JustifyContent::Center, ..default() },
+                Node { position_type: PositionType::Absolute, right: Val::Px(0.0), top: Val::Px(0.0), height: Val::Percent(100.0), width: Val::Px(12.0), justify_content: JustifyContent::FlexEnd, ..default() },
+                ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::NONE) },
+                crate::theme::RuiThemeElement::ScrollbarTrack,
                 Visibility::Hidden,
                 RuiVerticalScrollbar,
                 Interaction::None,
@@ -61,11 +63,14 @@ pub fn spawn_scrollview<'a>(
                 v_gutter.spawn((
                     Node { width: Val::Px(6.0), height: Val::Percent(0.0), margin: UiRect::top(Val::Px(2.0)), ..default() },
                     ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgba(0.8, 0.8, 0.8, 0.5)) },
+                    crate::theme::RuiThemeElement::ScrollbarThumb,
                 ));
             });
 
             parent.spawn((
                 Node { position_type: PositionType::Absolute, left: Val::Px(0.0), bottom: Val::Px(0.0), width: Val::Percent(100.0), height: Val::Px(12.0), align_items: AlignItems::Center, ..default() },
+                ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::NONE) },
+                crate::theme::RuiThemeElement::ScrollbarTrack,
                 Visibility::Hidden,
                 RuiHorizontalScrollbar,
                 Interaction::None,
@@ -74,6 +79,7 @@ pub fn spawn_scrollview<'a>(
                 h_gutter.spawn((
                     Node { height: Val::Px(6.0), width: Val::Percent(0.0), margin: UiRect::left(Val::Px(2.0)), ..default() },
                     ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgba(0.8, 0.8, 0.8, 0.5)) },
+                    crate::theme::RuiThemeElement::ScrollbarThumb,
                 ));
             });
         });

@@ -49,6 +49,7 @@ pub fn spawn_checkbox<'a>(
                 },
                 BorderColor::all(Color::srgb(0.5, 0.5, 0.5)),
                 ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.1, 0.1, 0.1)) },
+                crate::theme::RuiThemeElement::CheckboxBg,
             )).with_children(|box_parent| {
                 checkmark_entity = Some(box_parent.spawn((
                     Node {
@@ -57,6 +58,7 @@ pub fn spawn_checkbox<'a>(
                         ..default()
                     },
                     ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::WHITE) },
+                    crate::theme::RuiThemeElement::CheckboxIcon,
                     if checked { Visibility::Inherited } else { Visibility::Hidden },
                 )).id());
             });

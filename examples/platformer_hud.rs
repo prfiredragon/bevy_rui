@@ -57,7 +57,7 @@ fn setup(mut commands: Commands) {
                     n.width = Val::Auto;
                     n.height = Val::Auto;
                 }, |score| {
-                    score.label("MARIO", |font, color| {
+                    score.label("MANGO - Player", |font, color| {
                         font.font_size = bevy::prelude::FontSize::Px(28.0);
                         color.0 = Color::WHITE;
                     });
@@ -113,6 +113,13 @@ fn setup(mut commands: Commands) {
                 world.label("1-1", |font, color| {
                     font.font_size = bevy::prelude::FontSize::Px(24.0);
                     color.0 = Color::WHITE;
+                });
+                
+                // Progress Bar (Ejemplo: Nivel de progreso, Estamina, etc)
+                world.progress_bar(0.0, 100.0, 35.0, |n| {
+                    n.width = Val::Px(150.0);
+                    n.height = Val::Px(12.0);
+                    n.margin = UiRect::top(Val::Px(10.0));
                 });
             });
             

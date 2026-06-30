@@ -84,10 +84,32 @@ pub fn handle_button_colors(
                     }
                 },
                 crate::theme::RuiThemeElement::ListItem => {
-                    let color = if is_pressed { theme.color_list_item_pressed }
-                    else if is_hovered { theme.color_list_item_hover }
-                    else { theme.color_list_item_normal };
-                    (color, None)
+                    if is_pressed {
+                        if let Some(ref img) = theme.image_list_item_pressed { (Color::WHITE, Some(img.clone())) }
+                        else { (theme.color_list_item_pressed, None) }
+                    } else if is_hovered {
+                        if let Some(ref img) = theme.image_list_item_hover { (Color::WHITE, Some(img.clone())) }
+                        else { (theme.color_list_item_hover, None) }
+                    } else {
+                        if let Some(ref img) = theme.image_list_item_normal { (Color::WHITE, Some(img.clone())) }
+                        else { (theme.color_list_item_normal, None) }
+                    }
+                },
+                crate::theme::RuiThemeElement::Tab => {
+                    if is_pressed {
+                        if let Some(ref img) = theme.image_tab_active { (Color::WHITE, Some(img.clone())) }
+                        else { (Color::srgb(0.1, 0.1, 0.12), None) }
+                    } else if is_hovered {
+                        if let Some(ref img) = theme.image_tab_hover { (Color::WHITE, Some(img.clone())) }
+                        else { (Color::srgb(0.18, 0.18, 0.2), None) }
+                    } else {
+                        if let Some(ref img) = theme.image_tab_normal { (Color::WHITE, Some(img.clone())) }
+                        else { (Color::srgb(0.12, 0.12, 0.14), None) }
+                    }
+                },
+                crate::theme::RuiThemeElement::TabActive => {
+                    if let Some(ref img) = theme.image_tab_active { (Color::WHITE, Some(img.clone())) }
+                    else { (Color::srgb(0.2, 0.2, 0.22), None) }
                 },
                 _ => continue,
             };

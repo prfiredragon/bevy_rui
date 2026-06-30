@@ -89,11 +89,7 @@ pub fn spawn_tabs<'a>(
                     },
                     ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(if is_active { Color::srgb(0.2, 0.2, 0.22) } else { Color::srgb(0.12, 0.12, 0.14) }) },
                     BorderColor::all(if is_active { Color::srgb(0.4, 0.6, 1.0) } else { Color::NONE }),
-                    RuiButtonStateColors {
-                        normal: if is_active { Color::srgb(0.2, 0.2, 0.22) } else { Color::srgb(0.12, 0.12, 0.14) },
-                        hovered: if is_active { Color::srgb(0.25, 0.25, 0.27) } else { Color::srgb(0.18, 0.18, 0.2) },
-                        pressed: Color::srgb(0.1, 0.1, 0.12),
-                    },
+                    if is_active { crate::theme::RuiThemeElement::TabActive } else { crate::theme::RuiThemeElement::Tab },
                     RuiTabButton { container_entity, tab_index: i },
                     crate::focus::Focusable,
                     Pickable::default(),
@@ -179,7 +175,7 @@ pub fn handle_tab_clicks(
     mut interactions: Query<(Entity, &Interaction, &RuiTabButton), Changed<Interaction>>,
     mut containers: Query<&mut RuiTabContainer>,
     mut contents: Query<(&mut Node, &RuiTabContent)>,
-    mut buttons: Query<(&mut ImageNode, &mut BorderColor, &mut RuiButtonStateColors, &RuiTabButton)>,
+    mut buttons: Query<(&mut crate::theme::RuiThemeElement, &mut BorderColor, &RuiTabButton)>,
     mut texts: Query<(&mut TextColor, &ChildOf)>,
     mut input_focus: ResMut<bevy::input_focus::InputFocus>,
 ) {
@@ -199,19 +195,17 @@ pub fn handle_tab_clicks(
                 }
 
                 // Actualizar el estado visual del botón
-                for (mut bg, mut border, mut state_colors, btn) in &mut buttons {
+                for (mut element, mut border, btn) in &mut buttons {
                     if btn.container_entity == button.container_entity {
                         let is_active = btn.tab_index == button.tab_index;
                         *border = BorderColor::all(if is_active { Color::srgb(0.4, 0.6, 1.0) } else { Color::NONE });
-                        state_colors.normal = if is_active { Color::srgb(0.2, 0.2, 0.22) } else { Color::srgb(0.12, 0.12, 0.14) };
-                        state_colors.hovered = if is_active { Color::srgb(0.25, 0.25, 0.27) } else { Color::srgb(0.18, 0.18, 0.2) };
-                        bg.color = state_colors.normal;
+                        *element = if is_active { crate::theme::RuiThemeElement::TabActive } else { crate::theme::RuiThemeElement::Tab };
                     }
                 }
 
                 // Actualizar el color del texto
                 for (mut text_color, parent) in &mut texts {
-                    if let Ok((_, _, _, btn)) = buttons.get(parent.get()) {
+                    if let Ok((_, _, btn)) = buttons.get(parent.get()) {
                         if btn.container_entity == button.container_entity {
                             text_color.0 = if btn.tab_index == button.tab_index { Color::WHITE } else { Color::srgb(0.6, 0.6, 0.6) };
                         }
@@ -228,7 +222,7 @@ pub fn handle_tab_close_clicks(
     mut containers: Query<&mut RuiTabContainer>,
     buttons: Query<(Entity, &RuiTabButton)>,
     mut contents: Query<(Entity, &mut Node, &RuiTabContent)>,
-    mut button_visuals: Query<(&mut ImageNode, &mut BorderColor, &mut RuiButtonStateColors, &RuiTabButton)>,
+    mut button_visuals: Query<(&mut crate::theme::RuiThemeElement, &mut BorderColor, &RuiTabButton)>,
     mut texts: Query<(&mut TextColor, &ChildOf)>,
 ) {
     for (interaction, close_btn) in &mut interactions {
@@ -255,17 +249,15 @@ pub fn handle_tab_close_clicks(
                                 node.display = if content.tab_index == idx { Display::Flex } else { Display::None };
                             }
                         }
-                        for (mut bg, mut border, mut state_colors, btn) in &mut button_visuals {
+                        for (mut element, mut border, btn) in &mut button_visuals {
                             if btn.container_entity == close_btn.container_entity {
                                 let is_active = btn.tab_index == idx;
                                 *border = BorderColor::all(if is_active { Color::srgb(0.4, 0.6, 1.0) } else { Color::NONE });
-                                state_colors.normal = if is_active { Color::srgb(0.2, 0.2, 0.22) } else { Color::srgb(0.12, 0.12, 0.14) };
-                                state_colors.hovered = if is_active { Color::srgb(0.25, 0.25, 0.27) } else { Color::srgb(0.18, 0.18, 0.2) };
-                                bg.color = state_colors.normal;
+                                *element = if is_active { crate::theme::RuiThemeElement::TabActive } else { crate::theme::RuiThemeElement::Tab };
                             }
                         }
                         for (mut text_color, parent) in &mut texts {
-                            if let Ok((_, _, _, btn)) = button_visuals.get(parent.get()) {
+                            if let Ok((_, _, btn)) = button_visuals.get(parent.get()) {
                                 if btn.container_entity == close_btn.container_entity {
                                     text_color.0 = if btn.tab_index == idx { Color::WHITE } else { Color::srgb(0.6, 0.6, 0.6) };
                                 }

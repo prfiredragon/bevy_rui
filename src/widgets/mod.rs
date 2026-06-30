@@ -23,6 +23,7 @@ pub mod docks;
 pub mod slider;
 pub mod color_picker;
 pub mod code_editor;
+pub mod progress_bar;
 
 pub use accordion::*;
 pub use button::*;
@@ -43,6 +44,7 @@ pub use viewport::*;
 pub use docks::*;
 pub use color_picker::*;
 pub use code_editor::*;
+pub use progress_bar::*;
 
 
 #[derive(Resource)]
@@ -84,6 +86,7 @@ pub trait RuiBuilderExt {
     fn dock_split_vertical(&mut self, top_height: Val, min_size: f32, modifier: impl FnOnce(&mut Node), top_children: impl FnOnce(&mut ChildSpawnerCommands), bottom_children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_>;
     fn dock_panel(&mut self, active_tab: usize, modifier: impl FnOnce(&mut Node), build_tabs: impl FnOnce(&mut RuiTabsBuilder)) -> EntityCommands<'_>;
     fn slider(&mut self, min: f32, max: f32, value: f32, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_>;
+    fn progress_bar(&mut self, min: f32, max: f32, value: f32, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_>;
     fn code_editor(&mut self, placeholder: &str, language: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'_>; 
     fn canvas_layer(&mut self, camera_entity: Entity, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_>;
 }
@@ -158,6 +161,9 @@ impl RuiBuilderExt for ChildSpawnerCommands<'_> {
     }
     fn slider(&mut self, min: f32, max: f32, value: f32, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_> {
         slider::spawn_slider(self, min, max, value, modifier)
+    }
+    fn progress_bar(&mut self, min: f32, max: f32, value: f32, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_> {
+        progress_bar::spawn_progress_bar(self, min, max, value, modifier)
     }
     fn code_editor(&mut self, placeholder: &str, language: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'_> {
         code_editor::spawn_code_editor(self, placeholder, language, modifier)

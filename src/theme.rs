@@ -10,6 +10,7 @@ pub enum RuiThemeElement {
     ListItem,
     WindowHeader,
     TextboxBg,
+    CheckboxBg,
     CheckboxIcon,
     DropdownBg,
     SliderTrack,
@@ -17,6 +18,12 @@ pub enum RuiThemeElement {
     Text,
     ButtonText,
     WindowHeaderText,
+    ScrollbarTrack,
+    ScrollbarThumb,
+    Tab,
+    TabActive,
+    ProgressBarTrack,
+    ProgressBarFill,
 }
 
 /// Recurso global que define los estilos (fuentes, colores, y texturas/ninepatch).
@@ -81,6 +88,30 @@ pub struct RuiTheme {
     
     pub image_checkbox_checked: Option<Handle<Image>>,
     pub image_checkbox_unchecked: Option<Handle<Image>>,
+    
+    pub image_slider_track: Option<Handle<Image>>,
+    pub slider_track_margin: f32,
+    pub image_slider_handle: Option<Handle<Image>>,
+    
+    pub image_scrollbar_track: Option<Handle<Image>>,
+    pub scrollbar_track_margin: f32,
+    pub image_scrollbar_thumb: Option<Handle<Image>>,
+    pub scrollbar_thumb_margin: f32,
+    
+    pub image_list_item_normal: Option<Handle<Image>>,
+    pub image_list_item_hover: Option<Handle<Image>>,
+    pub image_list_item_pressed: Option<Handle<Image>>,
+    pub list_item_margin: f32,
+    
+    pub image_tab_normal: Option<Handle<Image>>,
+    pub image_tab_hover: Option<Handle<Image>>,
+    pub image_tab_active: Option<Handle<Image>>,
+    pub tab_margin: f32,
+    
+    pub image_progress_bar_track: Option<Handle<Image>>,
+    pub progress_bar_track_margin: f32,
+    pub image_progress_bar_fill: Option<Handle<Image>>,
+    pub progress_bar_fill_margin: f32,
 }
 
 impl FromWorld for RuiTheme {
@@ -143,6 +174,30 @@ impl FromWorld for RuiTheme {
             
             image_checkbox_checked: None,
             image_checkbox_unchecked: None,
+            
+            image_slider_track: None,
+            slider_track_margin: 0.0,
+            image_slider_handle: None,
+            
+            image_scrollbar_track: None,
+            scrollbar_track_margin: 0.0,
+            image_scrollbar_thumb: None,
+            scrollbar_thumb_margin: 0.0,
+            
+            image_list_item_normal: None,
+            image_list_item_hover: None,
+            image_list_item_pressed: None,
+            list_item_margin: 0.0,
+            
+            image_tab_normal: None,
+            image_tab_hover: None,
+            image_tab_active: None,
+            tab_margin: 0.0,
+            
+            image_progress_bar_track: None,
+            progress_bar_track_margin: 0.0,
+            image_progress_bar_fill: None,
+            progress_bar_fill_margin: 0.0,
         }
     }
 }
@@ -279,6 +334,72 @@ pub fn apply_rui_theme(
                 } else {
                     image_node.image = Handle::default();
                     image_node.color = theme.color_textbox_bg;
+                    image_node.image_mode = NodeImageMode::Stretch;
+                }
+            }
+            RuiThemeElement::SliderTrack => {
+                if let Some(ref img) = theme.image_slider_track {
+                    image_node.image = img.clone();
+                    image_node.color = Color::WHITE;
+                    if theme.slider_track_margin > 0.0 {
+                        image_node.image_mode = NodeImageMode::Sliced(TextureSlicer { border: BorderRect::all(theme.slider_track_margin), center_scale_mode: SliceScaleMode::Stretch, sides_scale_mode: SliceScaleMode::Stretch, max_corner_scale: 1.0 });
+                    } else { image_node.image_mode = NodeImageMode::Stretch; }
+                }
+            }
+            RuiThemeElement::SliderHandle => {
+                if let Some(ref img) = theme.image_slider_handle {
+                    image_node.image = img.clone();
+                    image_node.color = Color::WHITE;
+                    image_node.image_mode = NodeImageMode::Stretch;
+                }
+            }
+            RuiThemeElement::ScrollbarTrack => {
+                if let Some(ref img) = theme.image_scrollbar_track {
+                    image_node.image = img.clone();
+                    image_node.color = Color::WHITE;
+                    if theme.scrollbar_track_margin > 0.0 {
+                        image_node.image_mode = NodeImageMode::Sliced(TextureSlicer { border: BorderRect::all(theme.scrollbar_track_margin), center_scale_mode: SliceScaleMode::Stretch, sides_scale_mode: SliceScaleMode::Stretch, max_corner_scale: 1.0 });
+                    } else { image_node.image_mode = NodeImageMode::Stretch; }
+                }
+            }
+            RuiThemeElement::ScrollbarThumb => {
+                if let Some(ref img) = theme.image_scrollbar_thumb {
+                    image_node.image = img.clone();
+                    image_node.color = Color::WHITE;
+                    if theme.scrollbar_thumb_margin > 0.0 {
+                        image_node.image_mode = NodeImageMode::Sliced(TextureSlicer { border: BorderRect::all(theme.scrollbar_thumb_margin), center_scale_mode: SliceScaleMode::Stretch, sides_scale_mode: SliceScaleMode::Stretch, max_corner_scale: 1.0 });
+                    } else { image_node.image_mode = NodeImageMode::Stretch; }
+                }
+            }
+            RuiThemeElement::ProgressBarTrack => {
+                if let Some(ref img) = theme.image_progress_bar_track {
+                    image_node.image = img.clone();
+                    image_node.color = Color::WHITE;
+                    if theme.progress_bar_track_margin > 0.0 {
+                        image_node.image_mode = NodeImageMode::Sliced(TextureSlicer { border: BorderRect::all(theme.progress_bar_track_margin), center_scale_mode: SliceScaleMode::Stretch, sides_scale_mode: SliceScaleMode::Stretch, max_corner_scale: 1.0 });
+                    } else { image_node.image_mode = NodeImageMode::Stretch; }
+                }
+            }
+            RuiThemeElement::ProgressBarFill => {
+                if let Some(ref img) = theme.image_progress_bar_fill {
+                    image_node.image = img.clone();
+                    image_node.color = Color::WHITE;
+                    if theme.progress_bar_fill_margin > 0.0 {
+                        image_node.image_mode = NodeImageMode::Sliced(TextureSlicer { border: BorderRect::all(theme.progress_bar_fill_margin), center_scale_mode: SliceScaleMode::Stretch, sides_scale_mode: SliceScaleMode::Stretch, max_corner_scale: 1.0 });
+                    } else { image_node.image_mode = NodeImageMode::Stretch; }
+                }
+            }
+            RuiThemeElement::CheckboxBg => {
+                if let Some(ref img) = theme.image_checkbox_unchecked {
+                    image_node.image = img.clone();
+                    image_node.color = Color::WHITE;
+                    image_node.image_mode = NodeImageMode::Stretch;
+                }
+            }
+            RuiThemeElement::CheckboxIcon => {
+                if let Some(ref img) = theme.image_checkbox_checked {
+                    image_node.image = img.clone();
+                    image_node.color = Color::WHITE;
                     image_node.image_mode = NodeImageMode::Stretch;
                 }
             }
