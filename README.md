@@ -2,22 +2,25 @@
 
 # bevy_rui
 
-These are the 3 demos included. for the game demo you need the [kenney ui assets pack ](https://https://kenney-assets.itch.io/ui-pack)
+These are the included demos. For the game demo you need the [kenney ui assets pack](https://kenney-assets.itch.io/ui-pack).
 
-* the texture for the widgets are not finish.
-* if you want to support the project [ko-fi goal](https://ko-fi.com/robertxy/goal?g=1) or [ko-fi member](http://ko-fi.com/robertxy/tiers)
+* Theming and textures (Ninepatch) are fully supported for all game-oriented widgets.
+* If you want to support the project: [ko-fi goal](https://ko-fi.com/robertxy/goal?g=1) or [ko-fi member](http://ko-fi.com/robertxy/tiers)
 
 ## Widgets
 
-* Acordion menu
+* Accordion Menu
 * Button
+* Canvas Layer (for Game HUDs)
 * Checkbox
+* Code Editor
 * Color Picker
-* Dock
+* Dock (Splittable Panels)
 * Dropdown
 * Label
 * Menu
-* Open/Save dialog
+* Open/Save Dialog
+* Progress Bar
 * Slider
 * Tabs
 * Textbox
