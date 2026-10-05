@@ -186,7 +186,6 @@ impl Plugin for RuiWidgets {
         app.add_systems(Startup, color_picker::setup_color_picker_images);
         
         app.add_systems(Update, (
-            crate::theme::apply_rui_theme,
             handle_button_colors,
             //debug_colors::debug_list_item_colors,
             handle_checkbox_clicks,
@@ -239,11 +238,11 @@ impl Plugin for RuiWidgets {
             handle_textbox_clicks.after(crate::focus::sync_mouse_to_focus),
         ));
 
-        app.add_systems(Update, (
-            apply_rui_default_font,
-        ));
-
         app.add_systems(PostUpdate, (
+            (
+                crate::theme::apply_rui_theme,
+                apply_rui_default_font,
+            ).before(bevy::ui::UiSystems::Layout),
             viewport::update_rui_viewports,
         ));
     }
