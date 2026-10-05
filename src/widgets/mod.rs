@@ -24,6 +24,7 @@ pub mod slider;
 pub mod color_picker;
 pub mod code_editor;
 pub mod progress_bar;
+pub mod context_menu;
 
 pub use accordion::*;
 pub use button::*;
@@ -45,6 +46,7 @@ pub use docks::*;
 pub use color_picker::*;
 pub use code_editor::*;
 pub use progress_bar::*;
+pub use context_menu::*;
 
 
 #[derive(Resource)]
@@ -89,6 +91,8 @@ pub trait RuiBuilderExt {
     fn progress_bar(&mut self, min: f32, max: f32, value: f32, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_>;
     fn code_editor(&mut self, placeholder: &str, language: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'_>; 
     fn canvas_layer(&mut self, camera_entity: Entity, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_>;
+    fn context_menu(&mut self, build_items: impl FnOnce(&mut ChildSpawnerCommands));
+    fn context_menu_item(&mut self, label: &str, icon: Option<menu::RuiIcon>, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_>;
 }
 
 impl RuiBuilderExt for ChildSpawnerCommands<'_> {
@@ -168,6 +172,12 @@ impl RuiBuilderExt for ChildSpawnerCommands<'_> {
     fn code_editor(&mut self, placeholder: &str, language: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'_> {
         code_editor::spawn_code_editor(self, placeholder, language, modifier)
     }
+    fn context_menu(&mut self, build_items: impl FnOnce(&mut ChildSpawnerCommands)) {
+        context_menu::spawn_context_menu(self, build_items);
+    }
+    fn context_menu_item(&mut self, label: &str, icon: Option<menu::RuiIcon>, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'_> {
+        context_menu::spawn_context_menu_item(self, label, icon, modifier)
+    }
 
 }
 
@@ -201,6 +211,9 @@ impl Plugin for RuiWidgets {
             handle_code_editor_input,
             update_code_editor_visuals,
             handle_code_editor_clicks.after(crate::focus::sync_mouse_to_focus),
+            context_menu::handle_context_menu_clicks,
+            context_menu::close_context_menus_on_outside_click,
+            context_menu::handle_context_menu_item_clicks,
         ));
 
         app.add_systems(Update, (

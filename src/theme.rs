@@ -24,6 +24,7 @@ pub enum RuiThemeElement {
     TabActive,
     ProgressBarTrack,
     ProgressBarFill,
+    ContextMenuBg,
 }
 
 /// Recurso global que define los estilos (fuentes, colores, y texturas/ninepatch).
@@ -112,6 +113,9 @@ pub struct RuiTheme {
     pub progress_bar_track_margin: f32,
     pub image_progress_bar_fill: Option<Handle<Image>>,
     pub progress_bar_fill_margin: f32,
+    
+    pub image_context_menu_bg: Option<Handle<Image>>,
+    pub context_menu_bg_margin: f32,
 }
 
 impl FromWorld for RuiTheme {
@@ -198,6 +202,9 @@ impl FromWorld for RuiTheme {
             progress_bar_track_margin: 0.0,
             image_progress_bar_fill: None,
             progress_bar_fill_margin: 0.0,
+
+            image_context_menu_bg: None,
+            context_menu_bg_margin: 0.0,
         }
     }
 }
@@ -242,14 +249,18 @@ pub fn apply_rui_theme(
         }
 
         match element {
-            RuiThemeElement::Panel | RuiThemeElement::Window => {
-                if let Some(ref img) = theme.image_panel {
+            RuiThemeElement::Panel | RuiThemeElement::Window | RuiThemeElement::DropdownBg | RuiThemeElement::ContextMenuBg => {
+                let (img_opt, margin) = match element {
+                    RuiThemeElement::ContextMenuBg => (&theme.image_context_menu_bg, theme.context_menu_bg_margin),
+                    _ => (&theme.image_panel, theme.panel_margin),
+                };
+                if let Some(img) = img_opt {
                     image_node.image = img.clone();
                     image_node.color = Color::WHITE;
                     image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
-                    if theme.panel_margin > 0.0 {
+                    if margin > 0.0 {
                         image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
-                            border: BorderRect::all(theme.panel_margin),
+                            border: BorderRect::all(margin),
                             center_scale_mode: SliceScaleMode::Stretch,
                             sides_scale_mode: SliceScaleMode::Stretch,
                             max_corner_scale: 1.0,

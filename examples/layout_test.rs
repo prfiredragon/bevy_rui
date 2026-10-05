@@ -155,6 +155,23 @@ fn setup(
                         btn.label("¡Hazme Clic!", |font, _color| font.font_size = FontSize::Px(20.0));
                     }).insert(TestButton);
 
+                    // ¡AQUÍ ESTÁ EL CONTEXT MENU!
+                    left_panel.vbox(|s| {
+                        s.width = Val::Px(160.0);
+                        s.height = Val::Px(45.0);
+                        s.margin = UiRect::top(Val::Px(15.0));
+                        s.border = UiRect::all(Val::Px(1.0));
+                        s.justify_content = JustifyContent::Center;
+                        s.align_items = AlignItems::Center;
+                    }, |area| {
+                        area.label("Right Click Me!", |font, _color| font.font_size = FontSize::Px(16.0));
+                        area.context_menu(|menu| {
+                            menu.context_menu_item("Action 1", None, |_|{});
+                            menu.context_menu_item("Action 2", None, |_|{});
+                            menu.context_menu_item("Delete", None, |_|{});
+                        });
+                    });
+
                     // ¡AQUÍ ESTÁ EL NUEVO DROPDOWN!
                     left_panel.dropdown("Elige Clase", &["Guerrero", "Mago", "Arquero", "Ladrón"], |s| {
                         s.width = Val::Px(170.0);
