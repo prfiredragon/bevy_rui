@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
-use crate::widgets::{RuiButtonStateColors, menu::RuiIcon};
+use crate::widgets::{RuiButtonStateColors, RuiBuilderExt, menu::RuiIcon};
 use crate::theme::RuiThemeElement;
 
 #[derive(Component)]
@@ -35,7 +35,9 @@ pub fn spawn_context_menu<'a>(
         GlobalZIndex(1000),
         RuiThemeElement::ContextMenuBg,
         bevy::ui::FocusPolicy::Block,
-    )).with_children(build_items).id();
+    )).with_children(|popup| {
+        popup.scrollview(|_|{}, build_items);
+    }).id();
 
     // Attach to the parent
     parent.commands().entity(target_id)
@@ -142,6 +144,12 @@ pub fn handle_context_menu_clicks(
 
                         node.left = Val::Px(logical_pos_x);
                         node.top = Val::Px(logical_pos_y);
+                        
+                        let window_height = window.height();
+                        let margin_bottom = 10.0;
+                        if logical_pos_y < window_height {
+                            node.max_height = Val::Px(window_height - logical_pos_y - margin_bottom);
+                        }
                     }
                 }
             }

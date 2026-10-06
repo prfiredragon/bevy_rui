@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::widgets::RuiButtonStateColors;
+use crate::widgets::{RuiButtonStateColors, RuiBuilderExt};
 
 #[derive(Component)]
 pub struct RuiDropdown {
@@ -43,24 +43,29 @@ pub fn spawn_dropdown<'a>(
                 Node { display: Display::None, position_type: PositionType::Absolute, flex_direction: FlexDirection::Column, width: Val::Px(150.0), border: UiRect::all(Val::Px(1.0)), ..default() },
                 ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.15, 0.15, 0.15)) }, BorderColor::all(Color::srgb(0.3, 0.3, 0.3)), ZIndex(500), bevy::ui::FocusPolicy::Block,
                   GlobalZIndex(100), 
+                  crate::theme::RuiThemeElement::DropdownBg,
             )).with_children(|popup| {
-                for opt in options {
-                    popup.spawn((
-                        Node { width: Val::Percent(100.0), padding: UiRect::all(Val::Px(8.0)), ..default() },
-                        Button, crate::focus::Focusable, bevy::ui::FocusPolicy::Block, Pickable::default(),
-                        RuiButtonStateColors { normal: Color::srgb(0.15, 0.15, 0.15), hovered: Color::srgb(0.25, 0.25, 0.35), pressed: Color::srgb(0.1, 0.1, 0.2) },
-                        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.15, 0.15, 0.15)) },
-                        RuiDropdownOption { dropdown_entity: header_id, value: opt.to_string() }
-                    )).with_children(|opt_btn| {
-                        opt_btn.spawn((
-                            Text::new(*opt), 
-                            TextFont::default(), 
-                            TextColor(Color::WHITE),
-                            TextLayout::justify(Justify::Left).with_no_wrap(),
-                            Node { overflow: Overflow::clip(), flex_shrink: 1.0, min_width: Val::Px(0.0), ..default() }
-                        ));
-                    });
-                }
+                popup.scrollview(|_|{}, |scroll| {
+                    for opt in options {
+                        scroll.spawn((
+                            Node { width: Val::Percent(100.0), padding: UiRect::all(Val::Px(8.0)), ..default() },
+                            Button, crate::focus::Focusable, bevy::ui::FocusPolicy::Block, Pickable::default(),
+                            RuiButtonStateColors { normal: Color::NONE, hovered: Color::srgb(0.25, 0.25, 0.35), pressed: Color::srgb(0.1, 0.1, 0.2) },
+                            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::NONE) },
+                            RuiDropdownOption { dropdown_entity: header_id, value: opt.to_string() },
+                            crate::theme::RuiThemeElement::ListItem,
+                        )).with_children(|opt_btn| {
+                            opt_btn.spawn((
+                                Text::new(*opt), 
+                                TextFont::default(), 
+                                TextColor(Color::WHITE),
+                                TextLayout::justify(Justify::Left).with_no_wrap(),
+                                Node { overflow: Overflow::clip(), flex_shrink: 1.0, min_width: Val::Px(0.0), ..default() },
+                                crate::theme::RuiThemeElement::Text,
+                            ));
+                        });
+                    }
+                });
             }).id();
             parent.commands().entity(header_id).insert(RuiDropdown { popup_entity: popup_id, text_entity: text_id, is_open: false });
         });
@@ -134,9 +139,18 @@ pub fn update_dropdown_positions(
                 let logical_size_x = size.x / scale_factor;
                 let logical_size_y = size.y / scale_factor;
                 
+                let top_px = logical_pos_y + logical_size_y / 2.0;
+                
                 popup_node.left = Val::Px(logical_pos_x - logical_size_x / 2.0);
-                popup_node.top = Val::Px(logical_pos_y + logical_size_y / 2.0);
+                popup_node.top = Val::Px(top_px);
                 popup_node.width = Val::Px(logical_size_x);
+                
+                // Asegurar que el menú no se salga de la pantalla, acortándolo con scroll
+                let window_height = window.height();
+                let margin_bottom = 10.0;
+                if top_px < window_height {
+                    popup_node.max_height = Val::Px(window_height - top_px - margin_bottom);
+                }
             }
         }
     }
