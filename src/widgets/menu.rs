@@ -24,7 +24,6 @@ pub enum RuiIcon {
     Texture(Handle<Image>),
 }
 
-// CORRECCIÓN: Unificación de lifetimes con &'w mut ChildSpawnerCommands<'w>
 pub fn spawn_menu_bar<'w>(
     parent: &'w mut ChildSpawnerCommands<'w>,
     modifier: impl FnOnce(&mut Node),
@@ -51,8 +50,6 @@ pub fn spawn_menu_bar<'w>(
     cmds.with_children(children);
     cmds
 }
-
-// CORRECCIÓN: Firma unificada con el tiempo de vida global 'w
 pub fn spawn_submenu<'w>(
     parent: &'w mut ChildSpawnerCommands<'w>,
     label: &str,
@@ -64,52 +61,46 @@ pub fn spawn_submenu<'w>(
     let mut s = Node {
         width: Val::Auto,
         height: Val::Px(30.0),
-        padding: UiRect::horizontal(Val::Px(8.0)),
+        padding: UiRect::horizontal(Val::Px(12.0)),
         align_items: AlignItems::Center,
         justify_content: JustifyContent::SpaceBetween,
+        position_type: PositionType::Relative, // Actúa como anclaje espacial de Bevy 0.20
         ..default()
     };
     modifier(&mut s);
 
-    let colors = RuiButtonStateColors {
-        normal: Color::NONE,
-        hovered: Color::srgb(0.25, 0.25, 0.35),
-        pressed: Color::srgb(0.15, 0.15, 0.2),
-    };
+    let normal_color = Color::NONE;
+    let hover_color = Color::srgb(0.25, 0.25, 0.35);
 
     let mut cmds = parent.spawn((
-        bevy::ui_widgets::Button, // Componente marcador headless nativo de 0.20
+        bevy::ui_widgets::Button, 
         s,
         ImageNode::default(),
-        BackgroundColor(Color::NONE),
-        colors,
+        BackgroundColor(normal_color),
+        RuiButtonStateColors { normal: normal_color, hovered: hover_color, pressed: Color::srgb(0.15, 0.15, 0.2) },
         Focusable,
+        Pickable::default(),
     ));
 
-    
+    let header_id = cmds.id();
     let mut popup_id = Entity::PLACEHOLDER;
 
     cmds.with_children(|inner| {
+        // Contenedor Plano Horizontal para la etiqueta e icono internos
         inner.spawn(Node {
             flex_direction: FlexDirection::Row,
             align_items: AlignItems::Center,
             ..default()
         }).with_children(|row| {
-            // Spawn Icono
             if let Some(icon_type) = icon {
                 row.spawn(Node {
-                    width: Val::Px(16.0),
-                    height: Val::Px(16.0),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    ..default()
+                    width: Val::Px(16.0), height: Val::Px(16.0),
+                    justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default()
                 }).with_children(|icon_box| {
                     match icon_type {
                         RuiIcon::Emoji(e, font_opt) => {
                             let mut text_font = TextFont { font_size: FontSize::Px(14.0), ..default() };
-                            if let Some(f) = font_opt {
-                                text_font.font = FontSource::Handle(f);
-                            }
+                            if let Some(f) = font_opt { text_font.font = FontSource::Handle(f); }
                             icon_box.spawn((Text::new(e), text_font, TextColor(Color::WHITE)));
                         },
                         RuiIcon::Texture(h) => {
@@ -119,10 +110,9 @@ pub fn spawn_submenu<'w>(
                 });
                 row.spawn(Node { width: Val::Px(8.0), ..default() });
             } else {
-                row.spawn(Node { width: Val::Px(24.0), ..default() });
+                row.spawn(Node { width: Val::Px(12.0), ..default() });
             }
 
-            // Label
             row.spawn((
                 Text::new(label),
                 TextFont { font_size: FontSize::Px(14.0), ..default() },
@@ -138,9 +128,11 @@ pub fn spawn_submenu<'w>(
             ));
         }
 
+        // CORRECCIÓN DE ANCLAJE: Determinamos las coordenadas CSS-in-Rust exactas basadas en la profundidad
         let popup_left = if depth == 0 { Val::Px(0.0) } else { Val::Percent(100.0) };
         let popup_top = if depth == 0 { Val::Percent(100.0) } else { Val::Px(0.0) };
 
+        // CORRECCIÓN DE COLAPSO: Spawneamos el popup como entidad flotante paralela con GlobalZIndex
         popup_id = inner.spawn((
             Node {
                 display: Display::None,
@@ -156,24 +148,32 @@ pub fn spawn_submenu<'w>(
             ImageNode::default(),
             BackgroundColor(Color::srgb(0.15, 0.15, 0.16)),
             BorderColor::from(Color::BLACK),
-            ZIndex(100 + depth as i32),
-            GlobalZIndex(100 + depth as i32),
+            ZIndex(500 + depth as i32),
+            GlobalZIndex(500 + depth as i32), // Forzamos elevación absoluta en la GPU
         )).with_children(children).id();
     });
-
     cmds.insert(RuiSubmenuTrigger { is_open: false, depth, popup_entity: popup_id });
 
-    // CORRECCIÓN REACTIVA: Añadimos un observador autocontenido para abrir/cerrar este submenú específico
+    // Observador de Sobrevuelo (Hover In)
+    cmds.observe(move |_: On<PointerOver>, mut query: Query<&mut BackgroundColor>| {
+        if let Ok(mut bg) = query.get_mut(header_id) { bg.0 = hover_color; }
+    });
+
+    // Observador de Sobrevuelo (Hover Out)
+    cmds.observe(move |_: On<PointerOut>, mut query: Query<&mut BackgroundColor>| {
+        if let Ok(mut bg) = query.get_mut(header_id) { bg.0 = normal_color; }
+    });
+
+    // CORRECCIÓN REACTIVA DE CIERRE: Validamos basándonos en la entidad del trigger para evitar bucles de desvanecimiento automáticos
     cmds.observe(
         move |trigger: On<Activate>,
-              mut q_triggers: Query<&mut RuiSubmenuTrigger>,
+              mut q_triggers: Query<(Entity, &mut RuiSubmenuTrigger)>,
               mut q_popups: Query<&mut Node>| 
         {
             let target_entity = trigger.entity;
-            
-            // 1. Buscamos el trigger que se clickeó y obtenemos su profundidad actual
             let mut pressed_depth = None;
-            if let Ok(mut trigger_data) = q_triggers.get_mut(target_entity) {
+            
+            if let Ok((_, mut trigger_data)) = q_triggers.get_mut(target_entity) {
                 trigger_data.is_open = !trigger_data.is_open;
                 pressed_depth = Some(trigger_data.depth);
                 
@@ -182,10 +182,10 @@ pub fn spawn_submenu<'w>(
                 }
             }
 
-            // 2. Cerramos automáticamente los menús hermanos (mismo nivel de profundidad que no sean el seleccionado)
+            // CORRECCIÓN DEFINITIVA: Filtramos comparando la entidad de control (e != target_entity) para no auto-cerrarnos
             if let Some(depth) = pressed_depth {
-                for mut other_trigger in &mut q_triggers {
-                    if other_trigger.depth == depth && other_trigger.popup_entity != target_entity {
+                for (e, mut other_trigger) in &mut q_triggers {
+                    if other_trigger.depth == depth && e != target_entity {
                         if other_trigger.is_open {
                             other_trigger.is_open = false;
                             if let Ok(mut node) = q_popups.get_mut(other_trigger.popup_entity) {
@@ -201,7 +201,6 @@ pub fn spawn_submenu<'w>(
     cmds
 }
 
-/// Helper para cerrar todos los menús si se hace un clic exterior en la pantalla
 pub fn close_menus_on_outside_click(
     mouse: Res<ButtonInput<MouseButton>>,
     mut q_triggers: Query<&mut RuiSubmenuTrigger>,
@@ -218,8 +217,6 @@ pub fn close_menus_on_outside_click(
         }
     }
 }
-
-// CORRECCIÓN: Firma unificada con el tiempo de vida global 'w
 pub fn spawn_menu_item<'w>(
     parent: &'w mut ChildSpawnerCommands<'w>,
     label: &str,
@@ -227,7 +224,7 @@ pub fn spawn_menu_item<'w>(
     modifier: impl FnOnce(&mut Node),
 ) -> EntityCommands<'w> {
     let mut s = Node {
-        width: Val::Auto,
+        width: Val::Percent(100.0), // Forzamos estiramiento completo dentro del vbox flotante
         height: Val::Px(30.0),
         padding: UiRect::horizontal(Val::Px(8.0)),
         align_items: AlignItems::Center,
@@ -236,36 +233,39 @@ pub fn spawn_menu_item<'w>(
     };
     modifier(&mut s);
 
-    let colors = RuiButtonStateColors {
-        normal: Color::NONE,
-        hovered: Color::srgb(0.25, 0.25, 0.35),
-        pressed: Color::srgb(0.15, 0.15, 0.2),
-    };
+    let normal_item = Color::NONE;
+    let hover_item = Color::srgb(0.25, 0.25, 0.35);
 
     let mut cmds = parent.spawn((
-        bevy::ui_widgets::Button, // Widget headless nativo de Bevy 0.20
+        bevy::ui_widgets::Button, 
         s,
         ImageNode::default(),
-        BackgroundColor(Color::NONE),
-        colors,
+        BackgroundColor(normal_item),
+        RuiButtonStateColors { normal: normal_item, hovered: hover_item, pressed: Color::srgb(0.15, 0.15, 0.2) },
         Focusable,
+        Pickable::default(),
     ));
+
+    let item_id = cmds.id();
+
+    cmds.observe(move |_: On<PointerOver>, mut query: Query<&mut BackgroundColor>| {
+        if let Ok(mut bg) = query.get_mut(item_id) { bg.0 = hover_item; }
+    });
+
+    cmds.observe(move |_: On<PointerOut>, mut query: Query<&mut BackgroundColor>| {
+        if let Ok(mut bg) = query.get_mut(item_id) { bg.0 = normal_item; }
+    });
 
     cmds.with_children(|row| {
         if let Some(icon_type) = icon {
             row.spawn(Node {
-                width: Val::Px(16.0),
-                height: Val::Px(16.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
+                width: Val::Px(16.0), height: Val::Px(16.0),
+                justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default()
             }).with_children(|icon_box| {
                 match icon_type {
                     RuiIcon::Emoji(e, font_opt) => {
                         let mut text_font = TextFont { font_size: FontSize::Px(14.0), ..default() };
-                        if let Some(f) = font_opt {
-                            text_font.font = FontSource::Handle(f);
-                        }
+                        if let Some(f) = font_opt { text_font.font = FontSource::Handle(f); }
                         icon_box.spawn((Text::new(e), text_font, TextColor(Color::WHITE)));
                     },
                     RuiIcon::Texture(h) => {
