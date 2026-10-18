@@ -1,7 +1,8 @@
 use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
-use bevy::window::PrimaryWindow;
+use bevy::ui_widgets::Activate;
+use bevy::text::FontSize;
 use crate::widgets::RuiButtonStateColors;
 
 #[derive(Component)]
@@ -10,8 +11,6 @@ pub struct RuiWindow;
 #[derive(Component)]
 pub struct RuiWindowHeader {
     pub window_entity: Entity,
-    pub dragging: bool,
-    pub drag_offset: Vec2,
 }
 
 #[derive(Component)]
@@ -19,13 +18,13 @@ pub struct RuiWindowCloseButton {
     pub window_entity: Entity,
 }
 
-pub fn spawn_window<'a>(
-    parent_cmd: &'a mut ChildSpawnerCommands,
+pub fn spawn_window<'w>(
+    parent_cmd: &'w mut ChildSpawnerCommands<'w>,
     title: &str,
     closable: bool,
     modifier: impl FnOnce(&mut Node),
     children: impl FnOnce(&mut ChildSpawnerCommands, Entity),
-) -> EntityCommands<'a> {
+) -> EntityCommands<'w> {
     let mut s = Node {
         display: Display::Flex,
         flex_direction: FlexDirection::Column,
@@ -33,69 +32,92 @@ pub fn spawn_window<'a>(
         left: Val::Px(100.0),
         top: Val::Px(100.0),
         width: Val::Px(300.0),
-        // Se mantiene el border de layout, pero el color será dibujado por el ninepatch (o ImageNode)
+        // Espesor físico visible para el contorno de la ventana
         border: UiRect::all(Val::Px(2.0)),
         padding: UiRect::all(Val::Px(2.0)), 
+        border_radius: BorderRadius::all(Val::Px(5.0)),
         overflow: Overflow::clip(),
         ..default()
     };
     modifier(&mut s);
 
+    // CORRECCIÓN DE BORDES: Removemos ImageNode para permitir que el contorno y el fondo convivan de forma nativa
     let mut cmds = parent_cmd.spawn((
         s,
-        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::default() },
+        BackgroundColor(Color::srgb(0.18, 0.18, 0.18)),
+        BorderColor::from(Color::BLACK), // Contorno negro sólido garantizado
         crate::theme::RuiThemeElement::Window,
         ZIndex(100),
-        Interaction::None,
         Pickable::default(),
-        bevy::ui::FocusPolicy::Block,
-        BorderColor::all(Color::BLACK),
+        UiTransform::default(), 
         RuiWindow,
     ));
 
+    let window_id = cmds.id();
     cmds.with_children(|parent| {
-        let window_id = parent.target_entity();
-        parent.spawn((
+        let header_id = parent.spawn((
             Node { display: Display::Flex, align_self: AlignSelf::Stretch, height: Val::Px(35.0), padding: UiRect::all(Val::Px(6.0)), justify_content: JustifyContent::SpaceBetween, align_items: AlignItems::Center, ..default() },
-            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::default() },
+            ImageNode::default(),
             crate::theme::RuiThemeElement::WindowHeader,
-            Interaction::None, Pickable::default(), RelativeCursorPosition::default(),
-            RuiWindowHeader { window_entity: window_id, dragging: false, drag_offset: Vec2::ZERO }
+            Pickable::default(), 
+            RelativeCursorPosition::default(),
+            RuiWindowHeader { window_entity: window_id }
         )).with_children(|header| {
             header.spawn((Text::new(title), TextFont::default(), TextColor(Color::WHITE), crate::theme::RuiThemeElement::WindowHeaderText));
             if closable {
-                header.spawn((
+                let close_btn_id = header.spawn((
                     Node { display: Display::Flex, width: Val::Px(24.0), height: Val::Px(24.0), justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
-                    Button, 
-                    ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.8, 0.2, 0.2)) },
+                    bevy::ui_widgets::Button, 
+                    ImageNode::default(),
+                    BackgroundColor(Color::srgb(0.8, 0.2, 0.2)),
                     RuiButtonStateColors { normal: Color::srgb(0.8, 0.2, 0.2), hovered: Color::srgb(0.9, 0.3, 0.3), pressed: Color::srgb(0.6, 0.1, 0.1) },
                     RuiWindowCloseButton { window_entity: window_id },
                 )).with_children(|btn| {
-                    btn.spawn((Text::new("X"), TextFont { font_size: bevy::prelude::FontSize::Px(16.0), ..default() }, TextColor(Color::WHITE)));
-                });
+                    btn.spawn((Text::new("X"), TextFont { font_size: FontSize::Px(16.0), ..default() }, TextColor(Color::WHITE)));
+                }).id();
+
+                header.commands().entity(close_btn_id).observe(
+                    move |trigger: On<Activate>, 
+                          mut commands: Commands,
+                          q_close: Query<&RuiWindowCloseButton>,
+                          mut active_scope: ResMut<crate::focus::RuiActiveScope>| 
+                    {
+                        if let Ok(btn) = q_close.get(trigger.entity) {
+                            active_scope.remove_window(btn.window_entity);
+                            if let Ok(mut entity_cmds) = commands.get_entity(btn.window_entity) { 
+                                entity_cmds.try_despawn(); 
+                            }
+                        }
+                    }
+                );
             }
-        });
+        }).id();
+
+        // Sistema de arrastre fluido por deltas relativos sobre UiTransform
+        parent.commands().entity(header_id).observe(
+            move |on_drag: On<PointerDrag>, 
+                  mut q_window: Query<&mut UiTransform, With<RuiWindow>>,
+                  q_header: Query<&RuiWindowHeader>| 
+            {
+                if let Ok(header) = q_header.get(on_drag.event_target()) {
+                    if let Ok(mut transform) = q_window.get_mut(header.window_entity) {
+                        let current_x = if let Val::Px(px_val) = transform.translation.x { px_val } else { 0.0 };
+                        let current_y = if let Val::Px(px_val) = transform.translation.y { px_val } else { 0.0 };
+
+                        transform.translation.x = Val::Px(current_x + on_drag.delta.x);
+                        transform.translation.y = Val::Px(current_y + on_drag.delta.y);
+                    }
+                }
+            }
+        );
+
         parent.spawn((
             Node { display: Display::Flex, flex_direction: FlexDirection::Column, flex_grow: 1.0, overflow: Overflow::clip(), width: Val::Percent(100.0), padding: UiRect::all(Val::Px(10.0)), ..default() },
-            Interaction::None, bevy::ui::FocusPolicy::Block, Pickable::default(),
+            Pickable::default(),
         )).with_children(|p| children(p, window_id));
     });
     cmds
 }
-
-pub fn handle_window_close_clicks(
-    mut commands: Commands,
-    query: Query<(&Interaction, &RuiWindowCloseButton), Changed<Interaction>>,
-    mut active_scope: ResMut<crate::focus::RuiActiveScope>,
-) {
-    for (interaction, btn) in &query {
-        if *interaction == Interaction::Pressed {
-            active_scope.remove_window(btn.window_entity);
-            if let Ok(mut entity_cmds) = commands.get_entity(btn.window_entity) { entity_cmds.try_despawn(); }
-        }
-    }
-}
-
 pub fn handle_new_windows(
     mut active_scope: ResMut<crate::focus::RuiActiveScope>,
     query: Query<Entity, Added<RuiWindow>>,
@@ -105,32 +127,9 @@ pub fn handle_new_windows(
     }
 }
 
-pub fn handle_window_drag(
-    mouse: Res<ButtonInput<MouseButton>>,
-    mut q_header: Query<(&RelativeCursorPosition, &Interaction, &mut RuiWindowHeader, &ComputedNode)>,
-    mut q_window: Query<&mut Node, Without<RuiWindowHeader>>,
-    windows: Query<&Window, With<PrimaryWindow>>,
-) {
-    let (just_pressed, pressed, just_released) = (mouse.just_pressed(MouseButton::Left), mouse.pressed(MouseButton::Left), mouse.just_released(MouseButton::Left));
-    for (rel_pos, interaction, mut header, comp) in &mut q_header {
-        if just_released { header.dragging = false; }
-        if just_pressed && *interaction == Interaction::Pressed {
-            header.dragging = true;
-            if let Some(pos) = rel_pos.normalized { let size = comp.size(); header.drag_offset = Vec2::new((pos.x + 0.5) * size.x, (pos.y + 0.5) * size.y); }
-        }
-        if header.dragging && pressed {
-            if let Ok(win) = windows.single() {
-                if let Some(cursor) = win.cursor_position() {
-                    if let Ok(mut node) = q_window.get_mut(header.window_entity) { node.left = Val::Px(cursor.x - header.drag_offset.x); node.top = Val::Px(cursor.y - header.drag_offset.y); }
-                }
-            }
-        }
-    }
-}
-
 pub fn handle_window_focus(
     mouse: Res<ButtonInput<MouseButton>>,
-    q_interactions: Query<(Entity, &Interaction)>,
+    q_interactions: Query<(Entity, &bevy::ui::Pressed)>,
     parents: Query<&ChildOf>,
     mut q_windows: Query<&mut ZIndex, With<RuiWindow>>,
     mut counter: Local<i32>,
@@ -138,18 +137,18 @@ pub fn handle_window_focus(
 ) {
     if mouse.just_pressed(MouseButton::Left) {
         let mut clicked = None;
-        for (entity, interaction) in &q_interactions {
-            if *interaction == Interaction::Pressed {
-                let mut cur = entity;
-                loop {
-                    if q_windows.contains(cur) { clicked = Some(cur); break; }
-                    if let Ok(p) = parents.get(cur) { cur = p.get(); } else { break; }
-                }
+        for (entity, _) in &q_interactions {
+            let mut cur = entity;
+            loop {
+                if q_windows.contains(cur) { clicked = Some(cur); break; }
+                if let Ok(p) = parents.get(cur) { cur = p.get(); } else { break; }
             }
         }
         if let Some(win) = clicked {
             *counter += 1;
-            if let Ok(mut z) = q_windows.get_mut(win) { z.0 = 100 + *counter; }
+            if let Ok(mut z) = q_windows.get_mut(win) { 
+                *z = ZIndex(*counter); 
+            }
             active_scope.set_active_window(win);
         }
     }

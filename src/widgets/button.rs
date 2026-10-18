@@ -1,4 +1,7 @@
 use bevy::prelude::*;
+use bevy::picking::hover::Hovered;
+use bevy::ui::Pressed;
+use bevy::input_focus::InputFocus;
 
 #[derive(Component, Clone)]
 pub struct RuiButtonStateColors {
@@ -17,11 +20,12 @@ impl Default for RuiButtonStateColors {
     }
 }
 
-pub fn spawn_button<'a>(
-    parent: &'a mut ChildSpawnerCommands,
+// CORRECCIÓN: Introducción explícita del tiempo de vida 'w para ligar el Spawner de origen con los comandos retornados
+pub fn spawn_button<'w>(
+    parent: &'w mut ChildSpawnerCommands<'w>,
     modifier: impl FnOnce(&mut Node),
     children: impl FnOnce(&mut ChildSpawnerCommands),
-) -> EntityCommands<'a> {
+) -> EntityCommands<'w> {
     let mut s = Node {
         display: Display::Flex,
         justify_content: JustifyContent::Center,
@@ -31,15 +35,15 @@ pub fn spawn_button<'a>(
     };
     modifier(&mut s);
 
+    // Ajustado a los componentes headless modernos de Bevy 0.20
     let mut cmds = parent.spawn((
         s,
-        Button,
-        bevy::ui::FocusPolicy::Block,
-        Pickable::default(),
-        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::default() },
+        bevy::ui_widgets::Button, // Componente marcador headless nativo
+        ImageNode::default(),     // Ya no contiene visual_box o image_mode heredados
         crate::theme::RuiThemeElement::Button,
-        crate::focus::Focusable,
+        crate::focus::Focusable, 
     ));
+    
     cmds.with_children(children);
     cmds
 }
@@ -48,24 +52,32 @@ pub fn spawn_button<'a>(
 pub struct RuiSelected;
 
 pub fn handle_button_colors(
-    mut query: Query<(Entity, &Interaction, &mut ImageNode, Option<&crate::theme::RuiThemeElement>, Option<&RuiButtonStateColors>, Has<RuiSelected>)>,
+    // En Bevy 0.20 reemplazamos `&Interaction` por los componentes reactivos Option<&Hovered> y Option<&Pressed>
+    mut query: Query<(
+        Entity, 
+        Option<&Hovered>, 
+        Option<&Pressed>, 
+        &mut ImageNode, 
+        Option<&crate::theme::RuiThemeElement>, 
+        Option<&RuiButtonStateColors>, 
+        Has<RuiSelected>
+    )>,
     theme: Res<crate::theme::RuiTheme>,
-    input_focus: Res<bevy::input_focus::InputFocus>,
+    input_focus: Res<InputFocus>,
 ) {
-    let _focus_changed = input_focus.is_changed();
-    
-    for (entity, interaction, mut image_node, theme_element, state_colors, is_selected) in &mut query {
-        let _interaction_changed = true; // In a real scenario we'd track this via a local system parameter or ChangeTrackers, but checking color/image equality is cheap enough
-        
+    for (entity, hovered, pressed, mut image_node, theme_element, state_colors, is_selected) in &mut query {
         let is_focused = input_focus.get() == Some(entity);
-        let is_pressed = *interaction == Interaction::Pressed || is_selected;
-        let is_hovered = *interaction == Interaction::Hovered || (is_focused && !is_pressed);
+        
+        // El estado se evalúa verificando si el componente respectivo está presente (is_some())
+        let is_pressed = pressed.is_some() || is_selected;
+        let is_hovered = hovered.is_some() || (is_focused && !is_pressed);
 
         if let Some(colors) = state_colors {
             let target_color = if is_pressed { colors.pressed }
             else if is_hovered { colors.hovered }
             else { colors.normal };
             
+            // En Bevy 0.20, el tinte/color de un ImageNode vive directamente en su propiedad .color
             if image_node.color != target_color {
                 image_node.color = target_color;
             }

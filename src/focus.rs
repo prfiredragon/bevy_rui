@@ -48,7 +48,6 @@ impl Plugin for RuiFocusPlugin {
         ));
     }
 }
-
 pub fn is_in_active_window(
     entity: Entity,
     active_scope: &RuiActiveScope,
@@ -69,8 +68,9 @@ pub fn is_in_active_window(
     no_windows
 }
 
+// CORRECCIÓN DEFINITIVA DE DEPRECACIÓN: Reemplazamos &Interaction por las consultas oficiales de Pressed y Hovered
 pub fn sync_mouse_to_focus(
-    interaction_query: Query<(Entity, &Interaction), (Changed<Interaction>, With<Focusable>)>,
+    interaction_query: Query<(Entity, Option<&bevy::ui::Pressed>, Option<&bevy::picking::hover::Hovered>), (With<Focusable>, Or<(Changed<bevy::ui::Pressed>, Changed<bevy::picking::hover::Hovered>)>)>,
     mut input_focus: ResMut<InputFocus>,
     active_scope: Res<RuiActiveScope>,
     parents: Query<&ChildOf>,
@@ -78,23 +78,25 @@ pub fn sync_mouse_to_focus(
     config: Res<crate::navigation::RuiNavigationConfig>,
 ) {
     let no_windows = windows.is_empty();
-    for (entity, interaction) in &interaction_query {
-        if *interaction == Interaction::Pressed {
-            // Explicit click always steals focus
+    for (entity, pressed, hovered) in &interaction_query {
+        // En Bevy 0.20, la presencia del componente Pressed equivale al antiguo Interaction::Pressed
+        if pressed.is_some() {
             if input_focus.get() != Some(entity) {
                 input_focus.set(entity, FocusCause::Navigated);
             }
-        } else if *interaction == Interaction::Hovered {
-            // Hover steals focus only if it's in the active window OR if gamepad navigation is disabled
-            if !config.enabled || is_in_active_window(entity, &active_scope, &parents, no_windows) {
-                if input_focus.get() != Some(entity) {
-                    input_focus.set(entity, FocusCause::Navigated);
+        } 
+        // La presencia de Hovered con valor interno verdadero equivale al antiguo Interaction::Hovered
+        else if let Some(h_state) = hovered {
+            if h_state.0 {
+                if !config.enabled || is_in_active_window(entity, &active_scope, &parents, no_windows) {
+                    if input_focus.get() != Some(entity) {
+                        input_focus.set(entity, FocusCause::Navigated);
+                    }
                 }
             }
         }
     }
 }
-
 pub fn cleanup_despawned_windows(
     mut active_scope: ResMut<RuiActiveScope>,
     query: Query<Entity>,

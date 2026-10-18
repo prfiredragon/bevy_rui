@@ -118,7 +118,7 @@ pub fn spawn_dock_split_vertical<'a>(
 
 /// Spawns a dock panel (which is currently a wrapper around tabs)
 pub fn spawn_dock_panel<'a>(
-    parent: &'a mut ChildSpawnerCommands,
+    parent: &'a mut ChildSpawnerCommands<'a>,
     active_tab: usize,
     modifier: impl FnOnce(&mut Node),
     build_tabs: impl FnOnce(&mut RuiTabsBuilder),

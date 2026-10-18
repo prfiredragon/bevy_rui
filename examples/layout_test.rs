@@ -1,46 +1,41 @@
 use bevy::prelude::*;
 use bevy::input::mouse::MouseMotion;
 use bevy::ui::RelativeCursorPosition;
+use bevy::ui_widgets::Activate; 
 
 use bevy_rui::*;
 
 fn main() {
     App::new()
+        // Configuración nativa unificada de interacción para Bevy 0.20
         .insert_resource(MeshPickingSettings {
-            require_markers: true,
+            require_markers: false,
             ray_cast_visibility: RayCastVisibility::VisibleInView,
         })
         .insert_resource(UiPickingSettings {
-            require_markers: true,
+            require_markers: false,
         })
-        .add_plugins(DefaultPlugins)
-        .add_plugins(MeshPickingPlugin) // Necesario en 0.18.1 para picking 3D
+        .add_plugins(DefaultPlugins.set(bevy::log::LogPlugin {
+            // SANEAMIENTO DE LOGS: Forzamos nivel INFO para silenciar los logs ruidosos de la GPU en la consola
+            level: bevy::log::Level::INFO,
+            ..default()
+        }))
+        .add_plugins(MeshPickingPlugin) 
         .add_plugins(RuiPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, (handle_test_clicks, update_camera_viewport, drag_cube))
+        .add_systems(Update, update_camera_viewport)
+        .add_systems(Update, drag_cube)
         .run();
 }
 
-#[derive(Component)]
-struct TestButton;
+#[derive(Component)] struct TestButton;
+#[derive(Component)] struct TestTextBox;
+#[derive(Component)] struct TestCube;
+#[derive(Component)] struct EditableConsole;
+#[derive(Component)] struct ReadonlyConsole;
+#[derive(Component)] struct ViewportPanel;
+#[derive(Component)] struct ViewportCamera;
 
-#[derive(Component)]
-struct TestTextBox;
-
-#[derive(Component)]
-struct TestCube;
-
-#[derive(Component)]
-struct EditableConsole;
-
-#[derive(Component)]
-struct ReadonlyConsole;
-
-#[derive(Component)]
-struct ViewportPanel;
-
-#[derive(Component)]
-struct ViewportCamera;
 
 fn setup(
     mut commands: Commands,
@@ -48,29 +43,25 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    // Cargar y establecer la fuente global para toda la UI
-    commands.insert_resource(RuiDefaultFont(asset_server.load("fonts/afacad.ttf")));
+    let font_handle = asset_server.load("fonts/afacad.ttf");
+    commands.insert_resource(RuiDefaultFont(font_handle));
 
-    // 1. Cámara UI (Debe ser transparente para ver el 3D detrás)
+    // 1. Cámara UI
     commands.spawn((
         Camera2d,
-        Camera {
-            order: 1, // Se dibuja sobre el 3D
-            clear_color: ClearColorConfig::None,
-            ..default()
-        },
+        Camera { order: 1, clear_color: ClearColorConfig::None, ..default() },
         UiPickingCamera,
     ));
 
-    // 2. Cámara 3D (Se dibuja al fondo, en el orden 0)
+    // 2. Cámara 3D
     commands.spawn((
         Camera3d::default(),
         Camera { order: 0, ..default() },
-        MeshPickingCamera, // Requerido para proyectar rayos desde esta cámara
+        MeshPickingCamera, 
         ViewportCamera,
     ));
 
-    // 3. Escena 3D (Luz y Cubo Interactivo)
+    // 3. Escena 3D
     commands.spawn((
         DirectionalLight { shadow_maps_enabled: true, ..default() },
         Transform::from_xyz(-4.0, 8.0, -4.0),
@@ -84,14 +75,12 @@ fn setup(
         MeshMaterial3d(material),
         Transform::from_xyz(0.0, 0.0, -5.0),
         TestCube,
-        Pickable::default(), // PR #17266: Renombrado de PickingBehavior
-        Interaction::None, // El motor de picking actualizará esto al hacer clic en el cubo
-    )).observe(|_: On<Pointer<Click>>, 
+        Pickable::default(), 
+    )).observe(|_: On<Activate>, 
                  mut q_ed: Query<&mut RuiTextBox, (With<EditableConsole>, Without<ReadonlyConsole>, Without<TestTextBox>)>, 
                  mut q_ro: Query<&mut RuiTextBox, (With<ReadonlyConsole>, Without<EditableConsole>, Without<TestTextBox>)>| {
         let msg = "¡Cubo 3D clickeado directamente!".to_string();
         println!("{}", msg);
-        
         if let Ok(mut textbox) = q_ed.single_mut() {
             textbox.text.push_str(&format!("{}\n", msg));
             textbox.cursor_index = textbox.text.chars().count();
@@ -101,267 +90,197 @@ fn setup(
             textbox.cursor_index = textbox.text.chars().count();
         }
     });
+    let emoji_font = asset_server.load("fonts/openmojicolor.ttf");
 
-    // 1. Raíz que cubre la pantalla
     commands.rui_root(|_| {}, |ui| {
+        let mut root_spawner = ui.reborrow();
         
-        // 2. Columna base (VBox) para separar la pantalla en dos filas horizontales (HBox)
-        ui.vbox(|_| {}, |vbox| {
+        root_spawner.vbox(|_| {}, |vbox| {
+            let mut vb = vbox.reborrow();
             
-            let emoji_font = asset_server.load("fonts/openmojicolor.ttf");
-
             // --- MENÚ SUPERIOR ---
-            vbox.menu_bar(|s| { s.flex_shrink = 0.0; }, |menu| {
-                menu.submenu("File", None, 0, |_| {}, |file_menu| {
-                    file_menu.menu_item("Open", Some(RuiIcon::Emoji("📁".to_string(), Some(emoji_font.clone()))), |_| {});
-                    file_menu.menu_item("Save", Some(RuiIcon::Emoji("💾".to_string(), Some(emoji_font.clone()))), |_| {});
+            let mut menu_bar_binding = vb.reborrow();
+            menu_bar_binding.menu_bar(|s| { s.flex_shrink = 0.0; }, |menu| {
+                let mut m = menu.reborrow();
+                
+                let mut sub1 = m.reborrow();
+                sub1.submenu("File", None, 0, |_| {}, |file_menu| {
+                    let mut fm = file_menu.reborrow();
+                    let mut item1 = fm.reborrow();
+                    item1.menu_item("Open", Some(RuiIcon::Emoji("📁".to_string(), Some(emoji_font.clone()))), |_| {});
+                    let mut item2 = fm.reborrow();
+                    item2.menu_item("Save", Some(RuiIcon::Emoji("💾".to_string(), Some(emoji_font.clone()))), |_| {});
                 });
                 
-                menu.submenu("Prefab", None, 0, |_| {}, |prefab_menu| {
-                    prefab_menu.submenu("Native", None, 1, |_| {}, |native_menu| {
-                        native_menu.menu_item("Capsule3d", None, |_| {});
+                let mut sub2 = m.reborrow();
+                sub2.submenu("Prefab", None, 0, |_| {}, |prefab_menu| {
+                    let mut pm = prefab_menu.reborrow();
+                    
+                    let mut p_sub1 = pm.reborrow();
+                    p_sub1.submenu("Native", None, 1, |_| {}, |native_menu| {
+                        let mut nm = native_menu.reborrow();
+                        nm.menu_item("Capsule3d", None, |_| {});
                     });
                     
-                    prefab_menu.submenu("Particle", None, 1, |_| {}, |particle_menu| {
-                        particle_menu.menu_item("Particle3d", Some(RuiIcon::Emoji("✨".to_string(), Some(emoji_font.clone()))), |_| {});
+                    let mut p_sub2 = pm.reborrow();
+                    p_sub2.submenu("Particle", None, 1, |_| {}, |particle_menu| {
+                        let mut ptm = particle_menu.reborrow();
+                        ptm.menu_item("Particle3d", Some(RuiIcon::Emoji("✨".to_string(), Some(emoji_font.clone()))), |_| {});
                     });
                     
-                    prefab_menu.submenu("Environment", None, 1, |_| {}, |env_menu| {
-                        env_menu.menu_item("Directional Light", Some(RuiIcon::Emoji("☀️".to_string(), Some(emoji_font.clone()))), |_| {});
-                        env_menu.menu_item("Skybox", Some(RuiIcon::Emoji("🌌".to_string(), Some(emoji_font.clone()))), |_| {});
+                    let mut p_sub3 = pm.reborrow();
+                    p_sub3.submenu("Environment", None, 1, |_| {}, |env_menu| {
+                        let mut em = env_menu.reborrow();
+                        let mut item1 = em.reborrow();
+                        item1.menu_item("Directional Light", Some(RuiIcon::Emoji("☀️".to_string(), Some(emoji_font.clone()))), |_| {});
+                        let mut item2 = em.reborrow();
+                        item2.menu_item("Skybox", Some(RuiIcon::Emoji("🌌".to_string(), Some(emoji_font.clone()))), |_| {});
                     });
                 });
                 
-                menu.menu_item("Help", None, |_| {});
+                let mut sub3 = m.reborrow();
+                sub3.menu_item("Help", None, |_| {});
             });
 
-            // --- FILA SUPERIOR (Ocupa el espacio restante por defecto) ---
-            vbox.hbox(|s| { s.flex_grow = 1.0; }, |top_hbox| {
+            // --- FILA CENTRAL (Paneles del Editor) ---
+            let mut hbox_binding = vb.reborrow();
+            hbox_binding.hbox(|s| { s.flex_grow = 1.0; }, |top_hbox| {
+                let mut hbox = top_hbox.reborrow();
                 
-                // Dentro de esta primera fila de 80%, colocamos 3 columnas verticales (VBox)
-                
-                // Columna 1 (Izquierda - 20%)
-                top_hbox.vbox(|s| { 
-                    s.width = Val::Percent(20.0); 
-                    s.justify_content = JustifyContent::Center;
-                    s.align_items = AlignItems::Center;
+                // Columna Izquierda (20%)
+                let mut left_binding = hbox.reborrow();
+                left_binding.vbox(|s| { 
+                    s.width = Val::Percent(20.0); s.justify_content = JustifyContent::Center; s.align_items = AlignItems::Center; s.overflow = Overflow::visible();
                 }, |left_panel| {
+                    let mut lp = left_panel.reborrow();
                     
-                    // ¡AQUÍ ESTÁ EL BOTÓN!
-                    left_panel.button(|s| {
-                        s.width = Val::Px(160.0);
-                        s.height = Val::Px(45.0);
-                    }, |btn| {
-                        btn.label("¡Hazme Clic!", |font, _color| font.font_size = FontSize::Px(20.0));
-                    }).insert(TestButton);
-
-                    // ¡AQUÍ ESTÁ EL CONTEXT MENU!
-                    left_panel.vbox(|s| {
-                        s.width = Val::Px(160.0);
-                        s.height = Val::Px(45.0);
-                        s.margin = UiRect::top(Val::Px(15.0));
-                        s.border = UiRect::all(Val::Px(1.0));
-                        s.justify_content = JustifyContent::Center;
-                        s.align_items = AlignItems::Center;
+                    let mut btn_binding = lp.reborrow();
+                    let mut btn_cmd = btn_binding.button(|s| { s.width = Val::Px(160.0); s.height = Val::Px(45.0); }, |btn| {
+                        let mut b = btn.reborrow(); b.label("¡Hazme Clic!", |font, _| font.font_size = FontSize::Px(20.0));
+                    });
+                    
+                    btn_cmd.insert(TestButton).observe(|_: On<Activate>,
+                                                         mut textbox_query: Query<&mut RuiTextBox, (With<TestTextBox>, Without<EditableConsole>, Without<ReadonlyConsole>)>,
+                                                         mut editable_console_q: Query<&mut RuiTextBox, (With<EditableConsole>, Without<TestTextBox>, Without<ReadonlyConsole>)>,
+                                                         mut readonly_console_q: Query<&mut RuiTextBox, (With<ReadonlyConsole>, Without<TestTextBox>, Without<EditableConsole>)>| {
+                        if let Ok(mut textbox) = textbox_query.single_mut() {
+                            let msg_to_log; // SANEAMIENTO ADVERTENCIA: Eliminamos asignación inicial redundante
+                            if textbox.text.is_empty() { 
+                                msg_to_log = Some("textbox vacio.".to_string()); 
+                            } else {
+                                msg_to_log = Some(format!("texto borrado: {}", textbox.text));
+                                textbox.text.clear(); textbox.cursor_index = 0;
+                            }
+                            if let Some(msg) = msg_to_log {
+                                if let Ok(mut editable) = editable_console_q.single_mut() { editable.text.push_str(&format!("{}\n", msg)); editable.cursor_index = editable.text.chars().count(); }
+                                if let Ok(mut readonly) = readonly_console_q.single_mut() { readonly.text.push_str(&format!("{}\n", msg)); readonly.cursor_index = readonly.text.chars().count(); }
+                            }
+                        }
+                    });
+                    let mut ctx_binding = lp.reborrow();
+                    ctx_binding.vbox(|s| {
+                        s.width = Val::Px(160.0); s.height = Val::Px(45.0); s.margin = UiRect::top(Val::Px(15.0));
+                        s.border = UiRect::all(Val::Px(1.0)); s.justify_content = JustifyContent::Center; s.align_items = AlignItems::Center;
                     }, |area| {
-                        area.label("Right Click Me!", |font, _color| font.font_size = FontSize::Px(16.0));
-                        area.context_menu(|menu| {
-                            menu.context_menu_item("Action 1", None, |_|{});
-                            menu.context_menu_item("Action 2", None, |_|{});
-                            menu.context_menu_item("Delete", None, |_|{});
+                        let mut a = area.reborrow();
+                        let mut l_bind = a.reborrow();
+                        l_bind.label("Right Click Me!", |font, _color| font.font_size = FontSize::Px(16.0));
+                        let mut menu_bind = a.reborrow();
+                        menu_bind.context_menu(|menu| {
+                            let mut m = menu.reborrow();
+                            let mut i1 = m.reborrow(); i1.context_menu_item("Action 1", None, |_|{});
+                            let mut i2 = m.reborrow(); i2.context_menu_item("Action 2", None, |_|{});
+                            let mut i3 = m.reborrow(); i3.context_menu_item("Delete", None, |_|{});
                         });
                     });
 
-                    // ¡AQUÍ ESTÁ EL NUEVO DROPDOWN!
-                    left_panel.dropdown("Elige Clase", &["Guerrero", "Mago", "Arquero", "Ladrón"], |s| {
-                        s.width = Val::Px(170.0);
-                        s.height = Val::Px(45.0);
-                        s.margin = UiRect::top(Val::Px(15.0));
-                        s.border = UiRect::all(Val::Px(1.0));
+                    let mut drop_binding = lp.reborrow();
+                    drop_binding.dropdown("Elige Clase", &["Guerrero", "Mago", "Arquero", "Ladrón"], |s| {
+                        s.width = Val::Px(170.0); s.height = Val::Px(45.0); s.margin = UiRect::top(Val::Px(15.0)); s.border = UiRect::all(Val::Px(1.0));
                     });
 
-                    // ¡AQUÍ ESTÁ EL TEXTBOX!
-                    left_panel.textbox("Texto a borrar...", |s, font, _color| {
-                        s.width = Val::Px(250.0);
-                        s.height = Val::Px(45.0);
-                        s.margin = UiRect::top(Val::Px(15.0)); // Añadimos un pequeño margen arriba
-                        font.font_size = FontSize::Px(18.0);
+                    let mut txt_binding1 = lp.reborrow();
+                    txt_binding1.textbox("Texto a borrar...", |s, font, _| {
+                        s.width = Val::Px(250.0); s.height = Val::Px(45.0); s.margin = UiRect::top(Val::Px(15.0)); font.font_size = FontSize::Px(18.0);
                     }).insert(TestTextBox);
 
-                    left_panel.textbox("Escribe tu nombre...", |s, font, _color| {
-                        s.width = Val::Px(300.0);
-                        s.height = Val::Px(45.0);
-                        s.margin = UiRect::top(Val::Px(15.0)); 
-                        font.font_size = FontSize::Px(22.0);
+                    let mut txt_binding2 = lp.reborrow();
+                    txt_binding2.textbox("Escribe tu nombre...", |s, font, _| {
+                        s.width = Val::Px(300.0); s.height = Val::Px(45.0); s.margin = UiRect::top(Val::Px(15.0)); font.font_size = FontSize::Px(22.0);
                     }).insert(RuiTextBox {
-                        placeholder: "Escribe tu nombre...".to_string(),
-                        max_characters: Some(15),
-                        ..default()
+                        placeholder: "Escribe tu nombre...".to_string(), max_characters: Some(15), ..default()
                     }).with_tooltip("Escribe tu Nombre. Máximo 15 caracteres.", Color::srgb(0.24, 0.22, 0.22), Color::srgb(1.0, 0.8, 0.0));
-                    
+                }).insert(BackgroundColor(Color::srgb(0.8, 0.2, 0.2)));
 
-                   
+                // Columna Central (60% - Visor 3D)
+                let mut center_binding = hbox.reborrow();
+                center_binding.vbox(|s| { 
+                    s.width = Val::Percent(60.0); s.justify_content = JustifyContent::Center; s.align_items = AlignItems::Center; s.row_gap = Val::Px(20.0);
+                }, |center_panel| {
+                    let mut cp = center_panel.reborrow();
+                    cp.label("Visor 3D", |font, color| { font.font_size = FontSize::Px(40.0); color.0 = Color::srgb(1.0, 1.0, 0.0); });
+                }).insert((ViewportPanel, Pickable::IGNORE));
 
-
-                }).insert(BackgroundColor(Color::srgb(0.8, 0.2, 0.2))); // Rojo
-                    
-                // Columna 2 (Centro - 60%)
-                top_hbox.vbox(|s| { 
-                    s.width = Val::Percent(60.0); 
-                    s.justify_content = JustifyContent::Center;
-                    s.align_items = AlignItems::Center;
-                    s.row_gap = Val::Px(20.0);
-                }, |_center_panel| {
-                    _center_panel.label("Visor 3D", |font, color| {
-                        font.font_size = FontSize::Px(40.0);
-                        color.0 = Color::srgb(1.0, 1.0, 0.0); // Texto amarillo
-                    });
-
-                    
-                }).insert((ViewportPanel, Pickable::IGNORE)); // Pickable::IGNORE permite que el clic pase al 3D
-                    
-                // Columna 3 (Derecha - 20%)
-                top_hbox.vbox(|s| { 
-                    s.width = Val::Percent(20.0); 
-                    s.justify_content = JustifyContent::Center;
-                    s.align_items = AlignItems::Center;
+                // Columna Derecha (20%)
+                let mut right_binding = hbox.reborrow();
+                right_binding.vbox(|s| { 
+                    s.width = Val::Percent(20.0); s.justify_content = JustifyContent::Center; s.align_items = AlignItems::Center;
                 }, |right_panel| {
-                    right_panel.label("Menú Derecho", |font, _| font.font_size = FontSize::Px(24.0));
-                     // Ejemplo rápido de un Panel Derecho tipo Menú con Scroll!
-                    right_panel.scrollview(|s| {
-                        s.width = Val::Percent(20.0);
-                        s.height = Val::Percent(50.0);
-                        s.padding = UiRect::all(Val::Px(10.0));
+                    let mut rp = right_panel.reborrow();
+                    let mut l_bind = rp.reborrow(); l_bind.label("Menú Derecho", |font, _| font.font_size = FontSize::Px(24.0));
+                    
+                    let mut scr_bind = rp.reborrow();
+                    scr_bind.scrollview(|s| {
+                        s.width = Val::Percent(20.0); s.height = Val::Percent(50.0); s.padding = UiRect::all(Val::Px(10.0));
                     }, |scroll| {
+                        let mut sc = scroll.reborrow();
                         for i in 1..=20 {
-                            scroll.button(|s| {
-                                s.width = Val::Percent(100.0);
-                                s.height = Val::Px(40.0);
-                                s.margin = UiRect::bottom(Val::Px(5.0)); // Espacio entre botones
-                            }, |btn| {
-                                btn.label(&format!("Opción {}", i), |_,_| {});
+                            let mut item_bind = sc.reborrow();
+                            item_bind.button(|s| { s.width = Val::Percent(100.0); s.height = Val::Px(40.0); s.margin = UiRect::bottom(Val::Px(5.0)); }, |btn| {
+                                let mut b = btn.reborrow(); b.label(&format!("Opción {}", i), |_,_| {});
                             });
                         }
                     });
-                    right_panel.accordion("Opciones Avanzadas", |s| {
-                        s.margin = UiRect::top(Val::Px(15.0));
-                    }, |acc| {
-                        acc.checkbox("Habilitar Raytracing", false, |_| {});
-                        acc.checkbox("Filtro Bilineal", true, |_| {});
-                        acc.button(|s| { s.margin = UiRect::top(Val::Px(10.0)); }, |btn| { btn.label("Aplicar Cambios", |_,_| {}); });
+                    
+                    let mut acc_bind = rp.reborrow();
+                    acc_bind.accordion("Opciones Avanzadas", |s| { s.margin = UiRect::top(Val::Px(15.0)); }, |acc| {
+                        let mut ac = acc.reborrow();
+                        let mut chk1 = ac.reborrow(); chk1.checkbox("Habilitar Raytracing", false, |_| {});
+                        let mut chk2 = ac.reborrow(); chk2.checkbox("Filtro Bilineal", true, |_| {});
+                        let mut btn1 = ac.reborrow(); btn1.button(|s| { s.margin = UiRect::top(Val::Px(10.0)); }, |btn| { let mut b = btn.reborrow(); b.label("Aplicar Cambios", |_,_| {}); });
                     });
-
-                }).insert(BackgroundColor(Color::srgb(0.2, 0.2, 0.8))); // Azul
+                }).insert(BackgroundColor(Color::srgb(0.2, 0.2, 0.8)));
             });
 
-            // --- FILA INFERIOR (Ocupa el 20% del alto por defecto) ---
-            vbox.hbox(|s| { s.height = Val::Percent(20.0); s.flex_shrink = 0.0; }, |bottom_hbox| {
-                
-                // Consola 1: Editable
-                bottom_hbox.multiline_textbox("Consola Editable...", |s, font, _color| {
-                    s.width = Val::Percent(50.0);
-                    s.height = Val::Percent(100.0);
-                    font.font_size = FontSize::Px(18.0);
-                }).insert(EditableConsole);
-
-                // Consola 2: Readonly (Solo lectura)
-                bottom_hbox.multiline_textbox("Consola Solo Lectura...", |s, font, color| {
-                    s.width = Val::Percent(50.0);
-                    s.height = Val::Percent(100.0);
-                    font.font_size = FontSize::Px(18.0);
-                    color.0 = Color::srgb(0.7, 0.7, 0.7); // Texto más gris para diferenciar
-                }).insert(ReadonlyConsole).insert(RuiTextBox {
-                    placeholder: "Consola Solo Lectura...".to_string(),
-                    mode: RuiTextBoxMode::MultiLine,
-                    readonly: true, // ¡NUEVA PROPIEDAD! Bloquea la escritura.
-                    ..default()
-                });
-            });
-        }); // <-- ¡AQUÍ CERRAMOS EL VBOX PRINCIPAL!
-
-        // Ventana Flotante (Se añade directo a `ui`, para que flote encima de todo el Layout)
-        ui.window("Caja de Herramientas", true, |s| {
-            s.left = Val::Px(50.0);
-            s.top = Val::Px(50.0);
-        }, |win, _| {
-            win.label("¡Soy una ventana flotante libre!", |_,_| {});
-            win.button(|s| { s.margin = UiRect::top(Val::Px(10.0)); }, |btn| {
-                btn.label("Aceptar", |_,_| {});
+            // --- FILA INFERIOR (Consolas del Editor) ---
+            let mut bot_binding = vb.reborrow();
+            bot_binding.hbox(|s| { s.height = Val::Percent(20.0); s.flex_shrink = 0.0; }, |bottom_hbox| {
+                let mut bhbox = bottom_hbox.reborrow();
+                let mut txt1 = bhbox.reborrow(); txt1.multiline_textbox("Consola Editable...", |s, font, _| { s.width = Val::Percent(50.0); s.height = Val::Percent(100.0); font.font_size = FontSize::Px(18.0); }).insert(EditableConsole);
+                let mut txt2 = bhbox.reborrow(); txt2.multiline_textbox("Consola Solo Lectura...", |s, font, color| { s.width = Val::Percent(50.0); s.height = Val::Percent(100.0); font.font_size = FontSize::Px(18.0); color.0 = Color::srgb(0.7, 0.7, 0.7); }).insert((ReadonlyConsole, RuiTextBox { placeholder: "Consola Solo Lectura...".to_string(), mode: RuiTextBoxMode::MultiLine, readonly: true, ..default() }));
             });
         });
 
-        // Ventana Flotante (Se añade directo a `ui`, para que flote encima de todo el Layout)
-        ui.window("Caja de Herramientas 2", false, |s| {
-            s.left = Val::Px(400.0);
-            s.top = Val::Px(150.0);
-        }, |win, _| {
-            win.label("¡Soy una ventana flotante libre!", |_,_| {});
-            win.button(|s| { s.margin = UiRect::top(Val::Px(10.0)); }, |btn| {
-                btn.label("Aceptar", |_,_| {});
-            });
+        // CORRECCIÓN DEFINITIVA: Usamos directamente el spawner fresco 'ui' para evadir el bloqueo de 'vbox'
+        let mut w1 = ui.reborrow();
+        w1.window("Caja de Herramientas", true, |s| { s.left = Val::Px(50.0); s.top = Val::Px(50.0); }, |win, _| {
+            let mut w = win.reborrow(); w.label("¡Soy una ventana flotante libre!", |_,_| {});
         });
-
+        
+        let mut w2 = ui.reborrow();
+        w2.window("Caja de Herramientas 2", false, |s| { s.left = Val::Px(400.0); s.top = Val::Px(150.0); }, |win, _| {
+            let mut w = win.reborrow(); w.label("¡Soy una ventana flotante libre!", |_,_| {});
+        });
     });
 }
-
-fn handle_test_clicks(
-    interaction_query: Query<&Interaction, (Changed<Interaction>, With<TestButton>)>,
-    cube_query: Query<&Interaction, (Changed<Interaction>, With<TestCube>)>,
-    mut textbox_query: Query<&mut RuiTextBox, (With<TestTextBox>, Without<EditableConsole>, Without<ReadonlyConsole>)>,
-    mut editable_console_q: Query<&mut RuiTextBox, (With<EditableConsole>, Without<TestTextBox>, Without<ReadonlyConsole>)>,
-    mut readonly_console_q: Query<&mut RuiTextBox, (With<ReadonlyConsole>, Without<TestTextBox>, Without<EditableConsole>)>,
-) {
-    let mut msg_to_log = None;
-
-    // Detectar clic en el Cubo 3D
-    for interaction in &cube_query {
-        if *interaction == Interaction::Pressed {
-            msg_to_log = Some("¡Cubo 3D clickeado directamente!".to_string());
-            println!("{}", msg_to_log.as_ref().unwrap());
-        }
-    }
-
-    // Detectar clic en el Botón de la UI
-    for interaction in &interaction_query {
-        if *interaction == Interaction::Pressed {
-            if let Ok(mut textbox) = textbox_query.single_mut() {
-                if textbox.text.is_empty() {
-                    msg_to_log = Some("textbox vacio.".to_string());
-                    println!("textbox vacio.");
-                } else {
-                    msg_to_log = Some(format!("texto borrado: {}", textbox.text));
-                    println!("texto borrado: {}", textbox.text);
-                    textbox.text.clear();
-                    textbox.cursor_index = 0; // Reiniciamos el cursor al principio
-                }
-            }
-        }
-    }
-
-    // Si hay un mensaje nuevo (venga del cubo o del botón), lo enviamos a las consolas
-    if let Some(msg) = msg_to_log {
-        if let Ok(mut editable) = editable_console_q.single_mut() {
-            editable.text.push_str(&format!("{}\n", msg));
-            editable.cursor_index = editable.text.chars().count();
-        }
-        if let Ok(mut readonly) = readonly_console_q.single_mut() {
-            readonly.text.push_str(&format!("{}\n", msg));
-            readonly.cursor_index = readonly.text.chars().count();
-        }
-    }
-}
-
-/// Mueve el cubo cuando se arrastra el ratón dentro del área del visor
 fn drag_cube(
-    mut mouse_motion: MessageReader<MouseMotion>,
+    mut mouse_motion: MessageReader<MouseMotion>, 
     mouse_button: Res<ButtonInput<MouseButton>>,
     viewport_query: Query<&RelativeCursorPosition, With<ViewportPanel>>,
     mut cube_query: Query<&mut Transform, With<TestCube>>,
 ) {
-    // Solo rotamos si el botón izquierdo está presionado
-    if !mouse_button.pressed(MouseButton::Left) { return; }
+    if !mouse_button.pressed(MouseButton::Left) && !mouse_button.pressed(MouseButton::Right) { return; }
 
-    // Verificamos que el ratón esté dentro del visor 3D
     let Ok(rel_pos) = viewport_query.single() else { return };
     if !rel_pos.cursor_over() { return; }
 
@@ -369,18 +288,15 @@ fn drag_cube(
 
     for event in mouse_motion.read() {
         if mouse_button.pressed(MouseButton::Left) {
-            // Rotación con Click Izquierdo
             transform.rotate_local_y(event.delta.x * 0.005);
             transform.rotate_local_x(event.delta.y * 0.005);
         } else if mouse_button.pressed(MouseButton::Right) {
-            // Movimiento con Click Derecho
             transform.translation.x += event.delta.x * 0.01;
             transform.translation.y -= event.delta.y * 0.01;
         }
     }
 }
 
-/// Mantiene el Viewport de la Cámara 3D sincronizado con el tamaño y posición del Panel Central
 fn update_camera_viewport(
     ui_query: Query<(&GlobalTransform, &ComputedNode), With<ViewportPanel>>,
     mut camera_query: Query<&mut Camera, With<ViewportCamera>>,
@@ -391,11 +307,8 @@ fn update_camera_viewport(
     let Ok(window) = window_query.single() else { return };
 
     let size = node.size();
-    if size.x <= 0.0 || size.y <= 0.0 {
-        return;
-    }
+    if size.x <= 0.0 || size.y <= 0.0 { return; }
 
-    // Convertimos la posición de la UI (basada en el centro) a coordenadas físicas (top-left) de la pantalla
     let scale_factor = window.scale_factor();
     let pos = transform.translation();
     
@@ -405,7 +318,6 @@ fn update_camera_viewport(
         ((pos.y - size.y / 2.0) * scale_factor) as u32,
     );
 
-    // Le aplicamos el candado a la visión de la cámara
     camera.viewport = Some(bevy::camera::Viewport {
         physical_position: physical_pos,
         physical_size,

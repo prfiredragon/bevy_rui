@@ -1,4 +1,8 @@
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
+// Importamos los structs de eventos unificados nativos de Bevy 0.20
+use bevy::picking::events::{PointerOver, PointerOut};
+use bevy::text::FontSize;
 
 #[derive(Component)]
 pub struct RuiTooltipMarker;
@@ -13,7 +17,7 @@ pub trait TooltipExt {
     ) -> &mut Self;
 }
 
-impl TooltipExt for EntityCommands<'_> {
+impl<'w> TooltipExt for EntityCommands<'w> {
     fn with_tooltip(
         &mut self,
         text: impl Into<String>,
@@ -21,14 +25,21 @@ impl TooltipExt for EntityCommands<'_> {
         border_color: Color,
     ) -> &mut Self {
         let text_content = text.into();
-        self.insert((Pickable::default(), Interaction::None));
+        
+        self.insert(Pickable::default());
 
-        // Evento al entrar el ratón: Crea el tooltip en coordenadas globales
-        self.observe(move |over: On<Pointer<Over>>, mut commands: Commands| {
-            // Obtenemos la posición lógica del puntero (ventana) desde el evento
-            let mouse_pos = over.pointer_location.position;
-            let x = mouse_pos.x;
-            let y = mouse_pos.y - 35.0; // Lo posicionamos ligeramente arriba del cursor
+        // Evento al entrar el ratón utilizando el evento nativo PointerOver
+        self.observe(move |_: On<PointerOver>, mut commands: Commands, q_window: Query<&Window, With<PrimaryWindow>>| {
+            // CORRECCIÓN: .single() ahora devuelve un Result de forma segura en las versiones modernas
+            let (x, y) = if let Ok(window) = q_window.single() {
+                if let Some(cursor_pos) = window.cursor_position() {
+                    (cursor_pos.x, cursor_pos.y - 35.0)
+                } else {
+                    (0.0, 0.0)
+                }
+            } else {
+                (0.0, 0.0)
+            };
             
             commands.spawn((
                 Node {
@@ -39,22 +50,28 @@ impl TooltipExt for EntityCommands<'_> {
                     border: UiRect::all(Val::Px(2.0)),
                     ..default()
                 },
-                ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(bg_color) },
-                BorderColor::all(border_color),
-                GlobalZIndex(1000), // Encima de todo
+                ImageNode::default(),
+                BackgroundColor(bg_color),
+                BorderColor::from(border_color),
+                GlobalZIndex(1000), 
                 RuiTooltipMarker,
-                Pickable::IGNORE, // El tooltip no debe interferir con el puntero
+                Pickable::IGNORE,   
                 Transform::default(),
                 Visibility::default(),
-            )).with_child((
-                Text::new(text_content.clone()),
-                TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() },
-                TextColor(Color::WHITE),
-            ));
+            )).with_children(|parent| {
+                parent.spawn((
+                    Text::new(text_content.clone()),
+                    TextFont { 
+                        font_size: FontSize::Px(14.0), 
+                        ..default() 
+                    },
+                    TextColor(Color::WHITE),
+                ));
+            });
         });
 
-        // Evento al salir el ratón: Elimina el tooltip
-        self.observe(|_: On<Pointer<Out>>, mut commands: Commands, q: Query<Entity, With<RuiTooltipMarker>>| {
+        // Evento al salir el ratón utilizando el evento nativo PointerOut
+        self.observe(|_: On<PointerOut>, mut commands: Commands, q: Query<Entity, With<RuiTooltipMarker>>| {
             for entity in &q {
                 commands.entity(entity).try_despawn();
             }

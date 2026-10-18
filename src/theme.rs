@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 use bevy::ui::widget::NodeImageMode;
+use bevy::picking::hover::Hovered;
+use bevy::ui::Pressed;
 
 /// Componente para identificar el rol de un nodo de UI dentro del tema global.
 #[derive(Component, Debug, Clone, PartialEq, Eq)]
@@ -209,7 +211,7 @@ impl FromWorld for RuiTheme {
     }
 }
 
-pub fn apply_rui_theme(
+pub fn apply_rui_theme_old(
     mut commands: Commands,
     theme: Res<RuiTheme>,
     mut elements: Query<(
@@ -443,4 +445,157 @@ pub fn apply_rui_theme(
             apply_to_text(text_font, text_color, &*element_ref);
         }
     }
+}
+
+
+
+
+pub fn apply_rui_theme(
+    mut _commands: Commands,
+    theme: Res<RuiTheme>,
+    mut elements: Query<(
+        Entity,
+        &mut BackgroundColor,
+        Option<&mut Node>,
+        Option<&mut BorderColor>,
+        Option<&mut ImageNode>,
+        Option<&Hovered>,
+        Option<&Pressed>,
+        Ref<RuiThemeElement>,
+    )>,
+    mut text_elements: Query<(&mut TextFont, &mut TextColor, Ref<RuiThemeElement>)>,
+) {
+    let theme_changed = theme.is_changed();
+
+    for (_entity, mut bg_color, opt_node, opt_border_color, opt_image_node, hovered, pressed, element) in &mut elements {
+        if theme_changed 
+            || element.is_changed() 
+            || element.is_added() 
+            || *element == RuiThemeElement::Button 
+            || *element == RuiThemeElement::ListItem 
+        {
+            let (border_rect, b_color, border_radius) = match *element {
+                RuiThemeElement::Button => (theme.border_button, theme.border_color_button, theme.border_radius_button),
+                RuiThemeElement::ListItem => (theme.border_list_item, theme.border_color_list_item, theme.border_radius_list_item),
+                RuiThemeElement::Window => (theme.border_window, theme.border_color_window, theme.border_radius_window),
+                RuiThemeElement::Panel => (theme.border_panel, theme.border_color_panel, theme.border_radius_panel),
+                RuiThemeElement::TextboxBg => (theme.border_textbox, theme.border_color_textbox, theme.border_radius_textbox),
+                _ => (UiRect::all(Val::Px(0.0)), Color::NONE, BorderRadius::all(Val::Px(0.0))),
+            };
+
+            if let Some(mut node) = opt_node {
+                node.border = border_rect;
+                node.border_radius = border_radius;
+            }
+
+            if let Some(mut border_color) = opt_border_color {
+                *border_color = BorderColor::from(b_color);
+            }
+
+            match *element {
+                RuiThemeElement::Button => {
+                    let color = if pressed.is_some() {
+                        theme.color_button_pressed
+                    } else if hovered.is_some() {
+                        theme.color_button_hover
+                    } else {
+                        theme.color_button_normal
+                    };
+                    bg_color.0 = color;
+
+                    if let Some(mut image_node) = opt_image_node {
+                        let tex = if pressed.is_some() {
+                            theme.image_button_pressed.clone()
+                        } else if hovered.is_some() {
+                            theme.image_button_hover.clone()
+                        } else {
+                            theme.image_button_normal.clone()
+                        };
+
+                        if let Some(texture_handle) = tex {
+                            image_node.image = texture_handle;
+                            image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
+                                border: BorderRect::all(theme.button_margin),
+                                ..default()
+                            });
+                        }
+                    }
+                }
+                RuiThemeElement::ListItem => {
+                    let color = if pressed.is_some() {
+                        theme.color_list_item_pressed
+                    } else if hovered.is_some() {
+                        theme.color_list_item_hover
+                    } else {
+                        theme.color_list_item_normal
+                    };
+bg_color.0 = color;
+if let Some(mut image_node) = opt_image_node {
+let tex = if pressed.is_some() {
+theme.image_list_item_pressed.clone()
+} else if hovered.is_some() {
+theme.image_list_item_hover.clone()
+} else {
+theme.image_list_item_normal.clone()
+};
+if let Some(texture_handle) = tex {
+image_node.image = texture_handle;
+image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
+border: BorderRect::all(theme.list_item_margin),
+..default()
+});
+}
+}
+}
+RuiThemeElement::Panel => {
+bg_color.0 = theme.color_panel;
+if let Some(mut image_node) = opt_image_node {
+if let Some(ref texture_handle) = theme.image_panel {
+image_node.image = texture_handle.clone();
+image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
+border: BorderRect::all(theme.panel_margin),
+..default()
+});
+}
+}
+}
+RuiThemeElement::WindowHeader => {
+bg_color.0 = theme.color_window_header;
+if let Some(mut image_node) = opt_image_node {
+if let Some(ref texture_handle) = theme.image_window_header {
+image_node.image = texture_handle.clone();
+image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
+border: BorderRect::all(theme.window_header_margin),
+..default()
+});
+}
+}
+}
+RuiThemeElement::TextboxBg => {
+bg_color.0 = theme.color_textbox_bg;
+if let Some(mut image_node) = opt_image_node {
+if let Some(ref texture_handle) = theme.image_textbox_bg {
+image_node.image = texture_handle.clone();
+image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
+border: BorderRect::all(theme.textbox_margin),
+..default()
+});
+}
+}
+}
+_ => {}
+}
+}
+}
+for (mut text_font, mut text_color, element) in &mut text_elements {
+if theme_changed || element.is_changed() || element.is_added() {
+text_font.font = FontSource::Handle(theme.font.clone());
+match *element {
+RuiThemeElement::Text => text_color.0 = theme.color_text,
+RuiThemeElement::ButtonText => text_color.0 = theme.color_button_text,
+RuiThemeElement::WindowHeaderText => text_color.0 = theme.color_window_header_text,
+_ => {}
+}
+}
+}
 }
