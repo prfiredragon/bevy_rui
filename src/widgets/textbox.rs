@@ -54,6 +54,12 @@ pub fn spawn_textbox<'w>(
     let mut color = TextColor(Color::WHITE);
     modifier(&mut s, &mut font, &mut color);
 
+    // INYECCIÓN EN EL ARRANQUE: Pasamos el placeholder convertido a SmolStr dentro de la cola nativa de Bevy
+    let mut initial_text = EditableText::default();
+    if !placeholder.is_empty() {
+        initial_text.pending_edits.push(bevy::text::TextEdit::Insert(placeholder.to_string().into()));
+    }
+
     let cmds = parent_cmd.spawn((
         s,
         font,
@@ -61,11 +67,7 @@ pub fn spawn_textbox<'w>(
         bevy::ui_widgets::Button, 
         crate::focus::Focusable,
         TextInput,
-        EditableText {
-            visible_lines: Some(1.0),
-            allow_newlines: false,
-            ..default()
-        },
+        initial_text, // El buffer arranca pre-cargado con el texto de guía
         TextLayout {
             linebreak: LineBreak::WordOrCharacter,
             ..default()
@@ -80,8 +82,8 @@ pub fn spawn_textbox<'w>(
         RuiTextBox { 
             placeholder: placeholder.to_string(), 
             mode: RuiTextBoxMode::SingleLine, 
-            text: String::new(),
-            last_synced_text: String::new(),
+            text: placeholder.to_string(), // Sincronizamos la variable inicial
+            last_synced_text: placeholder.to_string(),
             ..default() 
         }
     ));
@@ -108,6 +110,16 @@ pub fn spawn_multiline_textbox<'w>(
     let mut color = TextColor(Color::WHITE);
     modifier(&mut s, &mut font, &mut color);
 
+    // INYECCIÓN EN EL ARRANQUE: Pasamos el placeholder convertido a SmolStr dentro de la cola nativa de Bevy
+    let mut initial_text = EditableText {
+        visible_lines: Some(8.0),
+        allow_newlines: true,
+        ..default()
+    };
+    if !placeholder.is_empty() {
+        initial_text.pending_edits.push(bevy::text::TextEdit::Insert(placeholder.to_string().into()));
+    }
+
     let cmds = parent_cmd.spawn((
         s,
         font,
@@ -115,11 +127,7 @@ pub fn spawn_multiline_textbox<'w>(
         bevy::ui_widgets::Button, 
         crate::focus::Focusable,
         TextInput,
-        EditableText {
-            visible_lines: Some(8.0),
-            allow_newlines: true,
-            ..default()
-        },
+        initial_text,
         TextLayout {
             linebreak: LineBreak::WordOrCharacter,
             ..default()
@@ -134,8 +142,8 @@ pub fn spawn_multiline_textbox<'w>(
         RuiTextBox { 
             placeholder: placeholder.to_string(), 
             mode: RuiTextBoxMode::MultiLine, 
-            text: String::new(),
-            last_synced_text: String::new(),
+            text: placeholder.to_string(), // Sincronizamos la variable inicial
+            last_synced_text: placeholder.to_string(),
             ..default() 
         }
     ));
@@ -143,42 +151,53 @@ pub fn spawn_multiline_textbox<'w>(
     cmds
 }
 
-// CORRECCIÓN DEFINITIVA DE ENUMS: Importamos y empaquetamos el String bajo la ruta legal de bevy::clipboard
 pub fn sync_native_textbox_buffers(
-    mut q_textboxes: Query<(Entity, &mut RuiTextBox, &mut EditableText, &mut Text, &crate::focus::Focusable)>,
+    mut q_textboxes: Query<(Entity, &mut RuiTextBox, &mut EditableText)>,
     focus: Res<bevy::input_focus::InputFocus>,
 ) {
     let focused_entity = focus.get();
 
-    for (entity, mut rui_box, mut editable_text, mut visual_text, _) in &mut q_textboxes {
+    for (entity, mut rui_box, mut editable_text) in &mut q_textboxes {
         let is_focused = Some(entity) == focused_entity;
 
-        // ACCIÓN A: Si el usuario modificó la variable 'text' externamente por código (ej. clic en el cubo)
+        // AUTOMATIZACIÓN DE PLACEHOLDER: Si el usuario selecciona el input y solo está el placeholder, limpiamos automáticamente
+        if is_focused && rui_box.text == rui_box.placeholder {
+            editable_text.clear();
+            rui_box.text = String::new();
+            rui_box.last_synced_text = String::new();
+            continue;
+        }
+
+        // Si pierde el foco y quedó completamente vacío, restauramos el texto de guía como buffer nativo
+        if !is_focused && rui_box.text.is_empty() && !rui_box.placeholder.is_empty() {
+            editable_text.clear();
+            editable_text.pending_edits.push(bevy::text::TextEdit::Insert(rui_box.placeholder.clone().into()));
+            rui_box.text = rui_box.placeholder.clone();
+            rui_box.last_synced_text = rui_box.placeholder.clone();
+            continue;
+        }
+
+        // ACCIÓN A: El texto fue alterado o vaciado externamente por código (.clear() desde un botón)
         if rui_box.text != rui_box.last_synced_text {
             editable_text.clear();
-            // CORRECCIÓN NATIVA: Envolvemos con Ready(Ok(String)) usando el enum del módulo raíz de Bevy
-            editable_text.pending_paste = Some(bevy::clipboard::ClipboardRead::Ready(Ok(rui_box.text.clone())));
+            if !rui_box.text.is_empty() {
+                let string_to_insert = rui_box.text.clone();
+                editable_text.pending_edits.push(bevy::text::TextEdit::Insert(string_to_insert.into()));
+            }
             rui_box.last_synced_text = rui_box.text.clone();
         } 
-        // ACCIÓN B: El usuario está escribiendo de forma interactiva con el teclado
+        // ACCIÓN B: El usuario está escribiendo de forma interactiva con el teclado físico
         else {
             let mut native_string = String::new();
             native_string.reserve(editable_text.value().into_iter().map(str::len).sum());
             for sub_str in editable_text.value() {
                 native_string.push_str(sub_str);
             }
-            
             rui_box.text = native_string.clone();
             rui_box.last_synced_text = native_string;
         }
-
-        // CONTROL DE PLACEHOLDER VISIBLE
-        if rui_box.text.is_empty() && !is_focused {
-            visual_text.0 = rui_box.placeholder.clone();
-        } else {
-            visual_text.0 = rui_box.text.clone();
-        }
     }
 }
+
 pub fn handle_textbox_input() {}
 pub fn handle_textbox_scroll() {}
