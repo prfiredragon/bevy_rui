@@ -48,7 +48,6 @@ pub fn spawn_file_dialog<'w>(
         wp.spawn(Node { display: Display::Flex, flex_direction: FlexDirection::Row, width: Val::Percent(100.0), height: Val::Px(40.0), padding: UiRect::all(Val::Px(4.0)), align_items: AlignItems::Center, ..default() }).with_children(|top_p| {
             let mut p = top_p.reborrow();
             
-            // SANEAMIENTO E0499: Reborrows secuenciales independientes para la barra superior
             let mut up_bind = p.reborrow();
             up_bind.button(|s| { s.width = Val::Px(40.0); s.height = Val::Px(30.0); }, |b| { b.reborrow().label("↑", |_,_|{}).insert(RuiThemeElement::ButtonText); }).observe(move |_: On<Activate>, mut q: Query<&mut RuiFileDialog>| {
                 if let Ok(mut d) = q.get_mut(dialog_id) {
@@ -64,7 +63,16 @@ pub fn spawn_file_dialog<'w>(
             });
             
             let mut txt_bind = p.reborrow();
-            txt_bind.spawn((Text::new(start_dir.display().to_string()), TextFont { font_size: FontSize::Px(16.0), ..default() }, TextColor(Color::WHITE), Node { margin: UiRect::left(Val::Px(10.0)), overflow: Overflow::clip(), flex_shrink: 1.0, min_width: Val::Px(0.0), ..default() })).insert(RuiFilePathText(dialog_id));
+            txt_bind.spawn((
+                Text::new(start_dir.display().to_string()),
+                TextFont { font_size: FontSize::Px(14.0), ..default() },
+                TextLayout { linebreak: LineBreak::NoWrap, justify: Justify::Right },
+                TextColor(Color::WHITE),
+                Node {
+                    margin: UiRect::left(Val::Px(10.0)), overflow: Overflow::clip(), flex_grow: 1.0,
+                    justify_content: JustifyContent::FlexEnd, align_items: AlignItems::Center, min_width: Val::Px(0.0), ..default()
+                }
+            )).insert(RuiFilePathText(dialog_id));
         });
         
         let mut list_id = Entity::PLACEHOLDER;
@@ -74,55 +82,61 @@ pub fn spawn_file_dialog<'w>(
         }).insert(BorderColor::from(Color::BLACK));
         list_container_entity = list_id;
         
-        wp.spawn(Node { display: Display::Flex, flex_direction: FlexDirection::Row, width: Val::Percent(100.0), height: Val::Px(40.0), padding: UiRect::all(Val::Px(4.0)), align_items: AlignItems::Center, justify_content: JustifyContent::SpaceBetween, ..default() }).with_children(|bot_p| {
+        wp.spawn(Node { display: Display::Flex, flex_direction: FlexDirection::Row, width: Val::Percent(100.0), height: Val::Px(40.0), padding: UiRect::horizontal(Val::Px(6.0)), align_items: AlignItems::Center, ..default() }).with_children(|bot_p| {
             let mut bp = bot_p.reborrow();
-            bp.spawn(Node { display: Display::Flex, flex_direction: FlexDirection::Row, flex_grow: 1.0, align_items: AlignItems::Center, ..default() }).with_children(|left_p| {
-                let mut lp = left_p.reborrow();
-                
-                let mut tb_bind = lp.reborrow();
-                textbox_entity = spawn_textbox(&mut tb_bind, "Nombre del archivo o carpeta...", |s, _, _| { s.flex_grow = 1.0; s.height = Val::Px(30.0); s.margin = UiRect::right(Val::Px(10.0)); }).id();
-                
-                if !filters.is_empty() {
-                    let filter_strings: Vec<String> = filters.iter().map(|f| f.name.clone()).collect();
-                    let str_refs: Vec<&str> = filter_strings.iter().map(|s| s.as_str()).collect();
-                    let mut drop_bind = lp.reborrow();
-                    filter_dropdown_entity = Some(crate::widgets::dropdown::spawn_dropdown(&mut drop_bind, &str_refs[0], &str_refs, |s| { s.width = Val::Px(200.0); s.height = Val::Px(30.0); s.margin = UiRect::right(Val::Px(10.0)); }).id());
-                }
-            });
             
-            bp.spawn(Node { display: Display::Flex, flex_direction: FlexDirection::Row, ..default() }).with_children(|btn_p| {
-                let mut btn = btn_p.reborrow();
+            let mut tb_bind = bp.reborrow();
+            textbox_entity = spawn_textbox(&mut tb_bind, "Nombre del archivo...", |s, _, _| { s.flex_grow = 1.0; s.height = Val::Px(30.0); s.margin = UiRect::right(Val::Px(10.0)); }).id();
+            
+            if !filters.is_empty() {
+                let filter_strings: Vec<String> = filters.iter().map(|f| f.name.clone()).collect();
+                let str_refs: Vec<&str> = filter_strings.iter().map(|s| s.as_str()).collect();
                 
-                let mut cancel_bind = btn.reborrow();
-                cancel_bind.button(|s| { s.width = Val::Px(80.0); s.height = Val::Px(30.0); s.margin = UiRect::right(Val::Px(10.0)); }, |b| { b.reborrow().label("Cancelar", |_,_|{}).insert(RuiThemeElement::ButtonText); }).observe(move |_: On<Activate>, mut commands: Commands, mut ev: MessageWriter<RuiFileCanceled>| {
-                    ev.write(RuiFileCanceled); commands.entity(dialog_id).despawn();
+                let mut drop_bind = bp.reborrow();
+                let mut drop_cmds = crate::widgets::dropdown::spawn_dropdown(&mut drop_bind, str_refs[0], &str_refs, |s| {
+                    s.width = Val::Px(200.0); s.min_width = Val::Px(200.0); s.height = Val::Px(30.0); s.flex_shrink = 0.0; s.margin = UiRect::right(Val::Px(15.0));
                 });
                 
-                let confirm_label = if mode == FileDialogMode::Open { "Abrir" } else { "Guardar" };
-                let mut confirm_bind = btn.reborrow();
-                confirm_bind.button(|s| { s.width = Val::Px(80.0); s.height = Val::Px(30.0); }, |b| { b.reborrow().label(confirm_label, |_,_|{}).insert(RuiThemeElement::ButtonText); }).observe(move |_: On<Activate>, mut commands: Commands, q_dialog: Query<&RuiFileDialog>, q_txt: Query<&RuiTextBox>, q_drop: Query<&crate::widgets::dropdown::RuiDropdown>, q_texts: Query<&Text>, mut ev: MessageWriter<RuiFileSelected>| {
-                    if let Ok(dialog) = q_dialog.get(dialog_id) {
-                        let mut file_name = if let Ok(tb) = q_txt.get(dialog.textbox_entity) { tb.text.clone() } else { dialog.selected_file.clone() };
-                        if !file_name.is_empty() {
-                            if let Some(drop_ent) = dialog.filter_dropdown {
-                                if let Ok(dropdown) = q_drop.get(drop_ent) {
-                                    if let Ok(drop_text) = q_texts.get(dropdown.text_entity) {
-                                        if let Some(filter) = dialog.filters.iter().find(|f| &f.name == &drop_text.0) {
-                                            if let Some(first_ext) = filter.extensions.first() {
-                                                if first_ext != "*" && first_ext != "*.*" {
-                                                    let clean_ext = first_ext.strip_prefix("*.").unwrap_or(first_ext);
-                                                    let suffix = format!(".{}", clean_ext.trim_start_matches('.'));
-                                                    if !file_name.to_lowercase().ends_with(&suffix.to_lowercase()) { file_name.push_str(&suffix); }
-                                                }
+                // CORRECCIÓN INTERACTIVA DIRECTA: Amarramos un observador al dropdown que fuerza el refresco inmediato al cambiar de extensión
+                drop_cmds.observe(move |_: On<Activate>, mut q_dialog: Query<&mut RuiFileDialog>| {
+                    if let Ok(mut dialog) = q_dialog.get_mut(dialog_id) {
+                        dialog.needs_refresh = true;
+                    }
+                });
+                
+                filter_dropdown_entity = Some(drop_cmds.id());
+            }
+            
+            let mut cancel_bind = bp.reborrow();
+            cancel_bind.button(|s| { s.width = Val::Px(80.0); s.height = Val::Px(30.0); s.flex_shrink = 0.0; s.margin = UiRect::right(Val::Px(10.0)); }, |b| { b.reborrow().label("Cancelar", |_,_|{}).insert(RuiThemeElement::ButtonText); }).observe(move |_: On<Activate>, mut commands: Commands, mut ev: MessageWriter<RuiFileCanceled>| {
+                ev.write(RuiFileCanceled); commands.entity(dialog_id).despawn();
+            });
+            
+            let confirm_label = if mode == FileDialogMode::Open { "Abrir" } else { "Guardar" };
+            let mut confirm_bind = bp.reborrow();
+            confirm_bind.button(|s| { s.width = Val::Px(80.0); s.height = Val::Px(30.0); s.flex_shrink = 0.0; }, |b| { b.reborrow().label(confirm_label, |_,_|{}).insert(RuiThemeElement::ButtonText); }).observe(move |_: On<Activate>, mut commands: Commands, q_dialog: Query<&RuiFileDialog>, q_txt: Query<&RuiTextBox>, q_drop: Query<&crate::widgets::dropdown::RuiDropdown>, q_texts: Query<&Text>, mut ev: MessageWriter<RuiFileSelected>| {
+                if let Ok(dialog) = q_dialog.get(dialog_id) {
+                    let mut file_name = if let Ok(tb) = q_txt.get(dialog.textbox_entity) { tb.text.clone() } else { dialog.selected_file.clone() };
+                    if !file_name.is_empty() {
+                        if let Some(drop_ent) = dialog.filter_dropdown {
+                            if let Ok(dropdown) = q_drop.get(drop_ent) {
+                                if let Ok(dropdown_text) = q_texts.get(dropdown.text_entity) {
+                                    let selected_filter_name = &dropdown_text.0;
+                                    if let Some(filter) = dialog.filters.iter().find(|f| &f.name == selected_filter_name) {
+                                        if let Some(first_ext) = filter.extensions.first() {
+                                            if first_ext != "*" && first_ext != "*.*" {
+                                                let clean_ext = first_ext.strip_prefix("*.").unwrap_or(first_ext);
+                                                let suffix = format!(".{}", clean_ext.trim_start_matches('.'));
+                                                if !file_name.to_lowercase().ends_with(&suffix.to_lowercase()) { file_name.push_str(&suffix); }
                                             }
                                         }
                                     }
                                 }
                             }
-                            ev.write(RuiFileSelected { path: dialog.current_dir.join(file_name), mode: dialog.mode }); commands.entity(dialog_id).despawn();
                         }
+                        ev.write(RuiFileSelected { path: dialog.current_dir.join(file_name), mode: dialog.mode }); commands.entity(dialog_id).despawn();
                     }
-                });
+                }
             });
         });
     });
@@ -271,15 +285,6 @@ pub fn update_file_list_ui(
     }
 }
 
-pub fn handle_dropdown_change(mut q_dialogs: Query<&mut RuiFileDialog>, q_dropdowns: Query<&crate::widgets::dropdown::RuiDropdown>, q_texts: Query<&Text, Changed<Text>>) {
-    for mut dialog in &mut q_dialogs {
-        if let Some(dropdown_entity) = dialog.filter_dropdown {
-            if let Ok(dropdown) = q_dropdowns.get(dropdown_entity) {
-                if q_texts.get(dropdown.text_entity).is_ok() { dialog.needs_refresh = true; }
-            }
-        }
-    }
-}
-
+pub fn handle_dropdown_change() {} // ELIMINADO FILTRO AGRESIVO POR FRAMES OBSOLETO
 pub fn handle_file_clicks() {}
 pub fn handle_dialog_buttons() {}
