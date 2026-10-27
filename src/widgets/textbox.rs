@@ -34,6 +34,37 @@ impl Default for RuiTextBox {
     }
 }
 
+/// Marcador del nodo visual que muestra el texto de guía (placeholder).
+/// Es SOLO visual: nunca forma parte del buffer `EditableText` ni de `RuiTextBox::text`.
+#[derive(Component)]
+pub struct RuiTextBoxPlaceholder;
+
+fn spawn_placeholder_child(cmds: &mut EntityCommands, placeholder: &str, font: &TextFont, color: &TextColor, padding: f32) {
+    if placeholder.is_empty() {
+        return;
+    }
+    let dim = color.0.with_alpha(color.0.alpha() * 0.45);
+    let text = placeholder.to_string();
+    let font = font.clone();
+    cmds.with_children(move |p| {
+        p.spawn((
+            Text::new(text),
+            font,
+            TextColor(dim),
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(padding),
+                top: Val::Px(padding),
+                right: Val::Px(padding),
+                overflow: Overflow::clip(),
+                ..default()
+            },
+            Pickable::IGNORE,
+            RuiTextBoxPlaceholder,
+        ));
+    });
+}
+
 pub fn spawn_textbox<'w>(
     parent_cmd: &'w mut ChildSpawnerCommands<'w>,
     placeholder: &str,
@@ -53,21 +84,18 @@ pub fn spawn_textbox<'w>(
     let mut font = TextFont::default();
     let mut color = TextColor(Color::WHITE);
     modifier(&mut s, &mut font, &mut color);
+    let pad = if let Val::Px(v) = s.padding.left { v } else { 8.0 };
+    let (f2, c2) = (font.clone(), color.clone());
 
-    // INYECCIÓN EN EL ARRANQUE: Pasamos el placeholder convertido a SmolStr dentro de la cola nativa de Bevy
-    let mut initial_text = EditableText::default();
-    if !placeholder.is_empty() {
-        initial_text.pending_edits.push(bevy::text::TextEdit::Insert(placeholder.to_string().into()));
-    }
-
-    let cmds = parent_cmd.spawn((
+    // El buffer arranca VACÍO: el placeholder se dibuja como un nodo hijo superpuesto.
+    let mut cmds = parent_cmd.spawn((
         s,
         font,
         color,
         bevy::ui_widgets::Button, 
         crate::focus::Focusable,
         TextInput,
-        initial_text, // El buffer arranca pre-cargado con el texto de guía
+        EditableText::default(),
         TextLayout {
             linebreak: LineBreak::WordOrCharacter,
             ..default()
@@ -82,11 +110,10 @@ pub fn spawn_textbox<'w>(
         RuiTextBox { 
             placeholder: placeholder.to_string(), 
             mode: RuiTextBoxMode::SingleLine, 
-            text: placeholder.to_string(), // Sincronizamos la variable inicial
-            last_synced_text: placeholder.to_string(),
             ..default() 
         }
     ));
+    spawn_placeholder_child(&mut cmds, placeholder, &f2, &c2, pad);
 
     cmds
 }
@@ -109,25 +136,21 @@ pub fn spawn_multiline_textbox<'w>(
     let mut font = TextFont::default();
     let mut color = TextColor(Color::WHITE);
     modifier(&mut s, &mut font, &mut color);
+    let pad = if let Val::Px(v) = s.padding.left { v } else { 8.0 };
+    let (f2, c2) = (font.clone(), color.clone());
 
-    // INYECCIÓN EN EL ARRANQUE: Pasamos el placeholder convertido a SmolStr dentro de la cola nativa de Bevy
-    let mut initial_text = EditableText {
-        visible_lines: Some(8.0),
-        allow_newlines: true,
-        ..default()
-    };
-    if !placeholder.is_empty() {
-        initial_text.pending_edits.push(bevy::text::TextEdit::Insert(placeholder.to_string().into()));
-    }
-
-    let cmds = parent_cmd.spawn((
+    let mut cmds = parent_cmd.spawn((
         s,
         font,
         color,
         bevy::ui_widgets::Button, 
         crate::focus::Focusable,
         TextInput,
-        initial_text,
+        EditableText {
+            visible_lines: Some(8.0),
+            allow_newlines: true,
+            ..default()
+        },
         TextLayout {
             linebreak: LineBreak::WordOrCharacter,
             ..default()
@@ -142,40 +165,23 @@ pub fn spawn_multiline_textbox<'w>(
         RuiTextBox { 
             placeholder: placeholder.to_string(), 
             mode: RuiTextBoxMode::MultiLine, 
-            text: placeholder.to_string(), // Sincronizamos la variable inicial
-            last_synced_text: placeholder.to_string(),
             ..default() 
         }
     ));
+    spawn_placeholder_child(&mut cmds, placeholder, &f2, &c2, pad);
 
     cmds
 }
 
 pub fn sync_native_textbox_buffers(
-    mut q_textboxes: Query<(Entity, &mut RuiTextBox, &mut EditableText)>,
+    mut q_textboxes: Query<(Entity, &mut RuiTextBox, &mut EditableText, Option<&Children>)>,
+    mut q_placeholders: Query<&mut Visibility, With<RuiTextBoxPlaceholder>>,
     focus: Res<bevy::input_focus::InputFocus>,
 ) {
     let focused_entity = focus.get();
 
-    for (entity, mut rui_box, mut editable_text) in &mut q_textboxes {
+    for (entity, mut rui_box, mut editable_text, children) in &mut q_textboxes {
         let is_focused = Some(entity) == focused_entity;
-
-        // AUTOMATIZACIÓN DE PLACEHOLDER: Si el usuario selecciona el input y solo está el placeholder, limpiamos automáticamente
-        if is_focused && rui_box.text == rui_box.placeholder {
-            editable_text.clear();
-            rui_box.text = String::new();
-            rui_box.last_synced_text = String::new();
-            continue;
-        }
-
-        // Si pierde el foco y quedó completamente vacío, restauramos el texto de guía como buffer nativo
-        if !is_focused && rui_box.text.is_empty() && !rui_box.placeholder.is_empty() {
-            editable_text.clear();
-            editable_text.pending_edits.push(bevy::text::TextEdit::Insert(rui_box.placeholder.clone().into()));
-            rui_box.text = rui_box.placeholder.clone();
-            rui_box.last_synced_text = rui_box.placeholder.clone();
-            continue;
-        }
 
         // ACCIÓN A: El texto fue alterado o vaciado externamente por código (.clear() desde un botón)
         if rui_box.text != rui_box.last_synced_text {
@@ -186,15 +192,28 @@ pub fn sync_native_textbox_buffers(
             }
             rui_box.last_synced_text = rui_box.text.clone();
         } 
-        // ACCIÓN B: El usuario está escribiendo de forma interactiva con el teclado físico
-        else {
+        // ACCIÓN B: El usuario está escribiendo de forma interactiva con el teclado físico.
+        // Esperamos a que Bevy aplique las ediciones pendientes para no leer un buffer desfasado.
+        else if editable_text.pending_edits.is_empty() {
             let mut native_string = String::new();
-            native_string.reserve(editable_text.value().into_iter().map(str::len).sum());
             for sub_str in editable_text.value() {
                 native_string.push_str(sub_str);
             }
-            rui_box.text = native_string.clone();
-            rui_box.last_synced_text = native_string;
+            if native_string != rui_box.text {
+                rui_box.text = native_string.clone();
+                rui_box.last_synced_text = native_string;
+            }
+        }
+
+        // PLACEHOLDER VISUAL: visible solo si está vacío y sin foco.
+        let show = rui_box.text.is_empty() && !is_focused;
+        if let Some(children) = children {
+            for child in children.iter() {
+                if let Ok(mut vis) = q_placeholders.get_mut(child) {
+                    let target = if show { Visibility::Inherited } else { Visibility::Hidden };
+                    if *vis != target { *vis = target; }
+                }
+            }
         }
     }
 }
