@@ -1,13 +1,11 @@
 use bevy::prelude::*;
-//use bevy::input::mouse::MouseMotion;
-//use bevy::ui::RelativeCursorPosition;
-
 use bevy::window::PresentMode;
+use bevy::ui_widgets::Activate;
 use bevy_rui::*;
 use bevy_rui::widgets::file_dialog::{spawn_file_dialog, FileDialogMode, RuiFileSelected, RuiFileCanceled, FileFilter};
 use std::env;
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
 enum DialogTrigger {
     Open,
     Save,
@@ -19,42 +17,32 @@ struct MainUiRoot;
 fn main() {
     App::new()
         .insert_resource(MeshPickingSettings {
-            require_markers: true,
+            require_markers: false,
             ray_cast_visibility: RayCastVisibility::VisibleInView,
         })
         .insert_resource(UiPickingSettings {
-            require_markers: true,
+            require_markers: false,
         })
-        //.add_plugins(DefaultPlugins)
         .add_plugins(
-                DefaultPlugins
-                    .set(ImagePlugin::default_nearest()) // Tu configuración actual para pixel art/texturas nítidas
-                    .set(WindowPlugin {
-                        primary_window: Some(Window {
-                            // Cambiamos el modo de presentación para evitar el crash en Hyprland
-                            present_mode: PresentMode::AutoNoVsync, 
-                            ..default()
-                        }),
+            DefaultPlugins
+                .set(ImagePlugin::default_nearest())
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        present_mode: PresentMode::AutoNoVsync, 
                         ..default()
                     }),
-            )
-        .add_plugins(MeshPickingPlugin) // Necesario en 0.18.1 para picking 3D
+                    ..default()
+                }),
+        )
+        .add_plugins(MeshPickingPlugin)
         .add_plugins(RuiPlugin)
         .add_systems(Startup, setup)
-        //.add_systems(Update, ( drag_cube, auto_rotate_cube))//update_camera_viewport
-        .add_systems(Update,  (auto_rotate_cube, handle_buttons, listen_to_file_dialog_messages))
+        .add_systems(Update, (auto_rotate_cube, listen_to_file_dialog_messages))
         .run();
 }
 
 #[derive(Component)]
 struct TestCube;
-
-/* #[derive(Component)]
-struct ViewportPanel; */
-
-/* #[derive(Component)]
-struct ViewportCamera; */
-
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -62,79 +50,50 @@ fn setup(
     asset_server: Res<AssetServer>,
     mut theme: ResMut<bevy_rui::theme::RuiTheme>,
 ) {
-    // Fondo general de paneles y barras laterales
-    // Fondo de la app (el gris muy oscuro del IDE)
     theme.color_panel = Color::srgb_u8(37, 37, 38);
-    // Para separar zonas, un panel general no tiene borde completo
     theme.border_panel = UiRect::all(Val::Px(0.0));
-    // Texto general gris claro
     theme.color_text = Color::srgb_u8(204, 204, 204);
-    // --- VENTANAS (Flotantes o modales) ---
     theme.color_window_header = Color::srgb_u8(51, 51, 51);
     theme.color_window_header_text = Color::srgb_u8(204, 204, 204);
-    // Borde distintivo negro para que la ventana resalte sobre el fondo oscuro
     theme.border_window = UiRect::all(Val::Px(1.0));
     theme.border_color_window = Color::BLACK;
-    theme.border_radius_window = BorderRadius::all(Val::Px(4.0)); // Opcional: un toque redondeado clásico de SO modernos
-    // --- CAJAS DE TEXTO (Inputs / Dropdowns) ---
+    theme.border_radius_window = BorderRadius::all(Val::Px(4.0));
     theme.color_textbox_bg = Color::srgb_u8(60, 60, 60);
     theme.border_textbox = UiRect::all(Val::Px(1.0));
-    theme.border_color_textbox = Color::srgb_u8(69, 69, 69); // Borde apenas más claro que el fondo
+    theme.border_color_textbox = Color::srgb_u8(69, 69, 69);
     theme.border_radius_textbox = BorderRadius::all(Val::Px(2.0));
-    // --- BOTONES ESTILO VSCODE (Outlined) ---
-    // Reposo: Mismo color que el fondo, pero con borde
     theme.color_button_normal = theme.color_panel;
     theme.border_button = UiRect::all(Val::Px(1.0));
-    theme.border_color_button = Color::srgb_u8(69, 69, 69); // Borde estilo marco sutil
+    theme.border_color_button = Color::srgb_u8(69, 69, 69);
     theme.border_radius_button = BorderRadius::all(Val::Px(2.0));
-    // Interacción: Cuando pasas el ratón cambian al clásico azul VSCode
     theme.color_button_hover = Color::srgb_u8(17, 119, 187);
     theme.color_button_pressed = Color::srgb_u8(9, 71, 113);
     theme.color_button_text = Color::WHITE;
-
-    theme.color_list_item_normal = Color::NONE; // Transparente por defecto para no verse como bloque
+    theme.color_list_item_normal = Color::NONE;
     theme.color_list_item_hover = Color::srgb_u8(42, 45, 46); 
-    theme.color_list_item_pressed = Color::srgb_u8(9, 71, 113); // Azul de selección
+    theme.color_list_item_pressed = Color::srgb_u8(9, 71, 113);
     theme.border_list_item = UiRect::all(Val::Px(1.0));
-    theme.border_color_list_item = Color::NONE; // Sin borde visible por defecto
+    theme.border_color_list_item = Color::NONE;
     theme.border_radius_list_item = BorderRadius::all(Val::Px(2.0)); 
-    // ------------------------------------------
-    // ------------------------------------------
 
-    // Cargar y establecer la fuente global para toda la UI
     commands.insert_resource(RuiDefaultFont(asset_server.load("fonts/afacad.ttf")));
 
-    // 1. Cámara UI (Debe ser transparente para ver el 3D detrás)
     commands.spawn((
         Camera2d,
-        Camera {
-            order: 1, // Se dibuja sobre el 3D
-            clear_color: ClearColorConfig::None,
-            ..default()
-        },
+        Camera { order: 1, clear_color: ClearColorConfig::None, ..default() },
         UiPickingCamera,
     ));
 
-    // 2. Cámara 3D (Se dibuja al fondo, en el orden 0)
-    /* commands.spawn((
-        Camera3d::default(),
-        Camera { order: 0, ..default() },
-        MeshPickingCamera, // Requerido para proyectar rayos desde esta cámara
-        //ViewportCamera,
-        RuiViewportCamera,
-    )); */
     let viewport_camera = commands.spawn((
         Camera3d::default(),
-        Camera { order: 0,
-             ..default() },
+        Camera { order: 0, ..default() },
         MeshPickingCamera,
-        RuiViewportCamera, // <- El componente de la librería
+        RuiViewportCamera,
     )).id();
 
-    // 3. Escena 3D (Luz y Cubo Interactivo)
     commands.spawn((
         DirectionalLight { shadow_maps_enabled: true, ..default() },
-        Transform::from_xyz(-4.0, 8.0, -4.0), //.looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(-4.0, 8.0, -4.0),
     ));
 
     let mesh = meshes.add(Cuboid::new(1.0, 1.0, 1.0));
@@ -145,143 +104,127 @@ fn setup(
         MeshMaterial3d(material),
         Transform::from_xyz(0.0, 0.0, -5.0),
         TestCube,
-        Pickable::default(), // PR #17266: Renombrado de PickingBehavior
-        Interaction::None, // El motor de picking actualizará esto al hacer clic en el cubo
-    )).observe(|_: On<Pointer<Click>>| {
-        let msg = "¡Cubo 3D clickeado directamente!".to_string();
-        println!("{}", msg);
+        Pickable::default(),
+    )).observe(|_: On<PointerClick>| {
+        println!("¡Cubo 3D clickeado directamente de forma nativa!");
     });
-
-    // 1. Raíz que cubre la pantalla
-    commands.rui_root(|_| {}, |ui| {
-        
-        // 2. Columna base (VBox) para separar la pantalla en dos filas horizontales (HBox)
-        ui.vbox(|_| {}, |vbox| {
-            
+    let root_entity = commands.rui_root(|_| {}, |ui| {
+        let mut root_ui = ui.reborrow();
+        root_ui.vbox(|_| {}, |vbox| {
+            let mut vb = vbox.reborrow();
             let emoji_font = asset_server.load("fonts/openmojicolor.ttf");
 
             // --- MENÚ SUPERIOR ---
-            vbox.menu_bar(|s| { s.flex_shrink = 0.0; }, |menu| {
-                menu.submenu("File", None, 0, |_| {}, |file_menu| {
-                    file_menu.menu_item("Open", Some(RuiIcon::Emoji("📁".to_string(), Some(emoji_font.clone()))), |_| {}).insert(DialogTrigger::Open);
-                    file_menu.menu_item("Save", Some(RuiIcon::Emoji("💾".to_string(), Some(emoji_font.clone()))), |_| {}).insert(DialogTrigger::Save);
+            let mut bar_bind = vb.reborrow();
+            bar_bind.menu_bar(|s| { s.flex_shrink = 0.0; }, |menu| {
+                let mut m = menu.reborrow();
+                
+                let mut file_bind = m.reborrow();
+                file_bind.submenu("File", None, 0, |_| {}, |file_menu| {
+                    let mut fm = file_menu.reborrow();
+                    fm.reborrow().menu_item("Open", Some(RuiIcon::Emoji("📁".to_string(), Some(emoji_font.clone()))), |_| {}).insert(DialogTrigger::Open);
+                    fm.reborrow().menu_item("Save", Some(RuiIcon::Emoji("💾".to_string(), Some(emoji_font.clone()))), |_| {}).insert(DialogTrigger::Save);
                 });
                 
-                menu.submenu("Prefab", None, 0, |_| {}, |prefab_menu| {
-                    prefab_menu.submenu("Native", None, 1, |_| {}, |native_menu| {
-                        native_menu.menu_item("Capsule3d", None, |_| {});
+                let mut prefab_bind = m.reborrow();
+                prefab_bind.submenu("Prefab", None, 0, |_| {}, |prefab_menu| {
+                    let mut pm = prefab_menu.reborrow();
+                    
+                    let mut native_bind = pm.reborrow();
+                    native_bind.submenu("Native", None, 1, |_| {}, |native_menu| {
+                        native_menu.reborrow().menu_item("Capsule3d", None, |_| {});
                     });
                     
-                    prefab_menu.submenu("Particle", None, 1, |_| {}, |particle_menu| {
-                        particle_menu.menu_item("Particle3d", Some(RuiIcon::Emoji("✨".to_string(), Some(emoji_font.clone()))), |_| {});
+                    let mut particle_bind = pm.reborrow();
+                    particle_bind.submenu("Particle", None, 1, |_| {}, |particle_menu| {
+                        particle_menu.reborrow().menu_item("Particle3d", Some(RuiIcon::Emoji("✨".to_string(), Some(emoji_font.clone()))), |_| {});
                     });
                     
-                    prefab_menu.submenu("Environment", None, 1, |_| {}, |env_menu| {
-                        env_menu.menu_item("Directional Light", Some(RuiIcon::Emoji("☀️".to_string(), Some(emoji_font.clone()))), |_| {});
-                        env_menu.menu_item("Skybox", Some(RuiIcon::Emoji("🌌".to_string(), Some(emoji_font.clone()))), |_| {});
+                    let mut env_bind = pm.reborrow();
+                    env_bind.submenu("Environment", None, 1, |_| {}, |env_menu| {
+                        let mut em = env_menu.reborrow();
+                        let mut light_bind = em.reborrow();
+                        light_bind.menu_item("Directional Light", Some(RuiIcon::Emoji("☀️".to_string(), Some(emoji_font.clone()))), |_| {});
+                        let mut sky_bind = em.reborrow();
+                        sky_bind.menu_item("Skybox", Some(RuiIcon::Emoji("🌌".to_string(), Some(emoji_font.clone()))), |_| {});
                     });
                 });
                 
-                menu.menu_item("Help", None, |_| {});
+                let mut help_bind = m.reborrow();
+                help_bind.menu_item("Help", None, |_| {});
             });
 
-            // --- ÁREA DE DOCKING (Ocupa todo el espacio restante) ---
-            vbox.dock_split_horizontal(Val::Percent(20.0), 100.0, |_| {}, |left_area| {
-                // Dock Izquierdo (Hierarchy)
-                left_area.dock_panel(0, |_| {}, |tabs| {
-                    tabs.tab("Hierarchy", false, |_, _| {}, |content| {
-                        content.label("Contenido de Hierarchy", |_,_|{});
-                    });
-                    tabs.tab("Entities", true, |_, _| {}, |content| {
-                        content.label("Contenido de Entities", |_,_|{});
-                    });
+            // --- ÁREA DE DOCKING (CORRECCIÓN E0599: Invocamos de forma directa sobre tabs sin .reborrow()) ---
+            let mut dock_bind = vb.reborrow();
+            dock_bind.dock_split_horizontal(Val::Percent(20.0), 100.0, |_| {}, |left_area| {
+                let mut la = left_area.reborrow();
+                la.dock_panel(0, |_| {}, |tabs| {
+                    tabs.tab("Hierarchy", false, |_, _| {}, |content| { content.reborrow().label("Contenido de Hierarchy", |_,_|{}); });
+                    tabs.tab("Entities", true, |_, _| {}, |content| { content.reborrow().label("Contenido de Entities", |_,_|{}); });
                 });
             }, |center_right_area| {
-                center_right_area.dock_split_horizontal(Val::Percent(75.0), 100.0, |_| {}, |center_area| {
-                    // Dock Central (Viewport y Consola inferior)
-                    center_area.dock_split_vertical(Val::Percent(75.0), 100.0, |_| {}, |top_area| {
-                        // Visor 3D (Arriba)
-                        top_area.dock_panel(0, |_| {}, |tabs| {
+                let mut cra = center_right_area.reborrow();
+                cra.dock_split_horizontal(Val::Percent(75.0), 100.0, |_| {}, |center_area| {
+                    let mut ca = center_area.reborrow();
+                    ca.dock_split_vertical(Val::Percent(75.0), 100.0, |_| {}, |top_area| {
+                        let mut ta = top_area.reborrow();
+                        ta.dock_panel(0, |_| {}, |tabs| {
                             tabs.tab("Scene 3D", false, |_, bg| bg.color = Color::NONE, move |content| {
-                                content.viewport(viewport_camera, |s| { s.flex_grow = 1.0; });
+                                content.reborrow().viewport(viewport_camera, |s| { s.flex_grow = 1.0; });
                             });
-                            tabs.tab("Game", true, |_, _| {}, |content| {
-                                content.label("Visor del Juego", |_,_|{});
-                            });
+                            tabs.tab("Game", true, |_, _| {}, |content| { content.reborrow().label("Visor del Juego", |_,_|{}); });
                         });
                     }, |bottom_area| {
-                        // Consola (Abajo)
-                        bottom_area.dock_panel(0, |_| {}, |tabs| {
-                            tabs.tab("Console", true, |_, _| {}, |content| {
-                                content.label("Logs de consola aquí...", |_,_|{});
-                            });
-                            tabs.tab("Assets", true, |_, _| {}, |content| {
-                                content.label("Archivos", |_,_|{});
-                            });
+                        let mut ba = bottom_area.reborrow();
+                        ba.dock_panel(0, |_| {}, |tabs| {
+                            tabs.tab("Console", true, |_, _| {}, |content| { content.reborrow().label("Logs de consola aquí...", |_,_|{}); });
+                            tabs.tab("Assets", true, |_, _| {}, |content| { content.reborrow().label("Archivos", |_,_|{}); });
                         });
                     });
                 }, |right_area| {
-                    // Dock Derecho (Inspector)
-                    right_area.dock_panel(0, |_| {}, |tabs| {
+                    let mut ra = right_area.reborrow();
+                    ra.dock_panel(0, |_| {}, |tabs| {
                         tabs.tab("Inspector", false, |_, _| {}, |content| {
-                            content.vbox(|s| {
-                                s.width = Val::Percent(100.0);
-                                s.padding = UiRect::all(Val::Px(10.0));
-                            }, |v| {
-                                v.label("Propiedades", |_,_|{});
-                                v.hbox(|s| {
-                                    s.width = Val::Percent(100.0);
-                                    s.margin = UiRect::top(Val::Px(10.0));
-                                    s.align_items = AlignItems::Center;
-                                }, |h| {
-                                    h.label("Color: ", |_,_|{});
-                                    h.color_picker(Color::srgb(1.0, 0.0, 0.0), |s| {
-                                        s.margin = UiRect::left(Val::Px(10.0));
-                                    });
+                            content.reborrow().vbox(|s| { s.width = Val::Percent(100.0); s.padding = UiRect::all(Val::Px(10.0)); }, |v| {
+                                let mut vb = v.reborrow();
+                                vb.reborrow().label("Propiedades", |_,_|{});
+                                vb.reborrow().hbox(|s| { s.width = Val::Percent(100.0); s.margin = UiRect::top(Val::Px(10.0)); s.align_items = AlignItems::Center; }, |h| {
+                                    let mut hb = h.reborrow();
+                                    hb.reborrow().label("Color: ", |_,_|{});
+                                    hb.reborrow().color_picker(Color::srgb(1.0, 0.0, 0.0), |s| { s.margin = UiRect::left(Val::Px(10.0)); });
                                 });
                             });
                         });
-                        tabs.tab("Settings", true, |_, _| {}, |content| {
-                            content.label("Ajustes globales", |_,_|{});
-                        });
+                        tabs.tab("Settings", true, |_, _| {}, |content| { content.reborrow().label("Ajustes globales", |_,_|{}); });
                     });
                 });
             });
-        }); // <-- ¡AQUÍ CERRAMOS EL VBOX PRINCIPAL!
+        });
+    }).id();
 
-    }).insert(MainUiRoot);
-}
+    commands.entity(root_entity).insert(MainUiRoot);
 
-/* /// Mueve el cubo cuando se arrastra el ratón dentro del área del visor
-fn drag_cube(
-    mut mouse_motion: MessageReader<MouseMotion>,
-    mouse_button: Res<ButtonInput<MouseButton>>,
-    viewport_query: Query<(&RelativeCursorPosition, &ViewVisibility), With<ViewportPanel>>,
-    mut cube_query: Query<&mut Transform, With<TestCube>>,
-) {
-    // Solo rotamos si el botón izquierdo está presionado
-    if !mouse_button.pressed(MouseButton::Left) { return; }
-
-    // Verificamos que el ratón esté dentro del visor 3D
-    let Ok((rel_pos, view_vis)) = viewport_query.single() else { return };
-    if !view_vis.get() || !rel_pos.cursor_over() { return; }
-
-    let Ok(mut transform) = cube_query.single_mut() else { return };
-
-    for event in mouse_motion.read() {
-        if mouse_button.pressed(MouseButton::Left) {
-            // Rotación con Click Izquierdo
-            transform.rotate_local_y(event.delta.x * 0.005);
-            transform.rotate_local_x(event.delta.y * 0.005);
-        } else if mouse_button.pressed(MouseButton::Right) {
-            // Movimiento con Click Derecho
-            transform.translation.x += event.delta.x * 0.01;
-            transform.translation.y -= event.delta.y * 0.01;
+    // OBSERVADOR REACIVO ATÓMICO GLOBAL INTERACTIVO
+    commands.add_observer(|trigger: On<Activate>, q_triggers: Query<&DialogTrigger>, q_root: Query<Entity, With<MainUiRoot>>, mut commands: Commands| {
+        if let Ok(dialog_mode) = q_triggers.get(trigger.entity) {
+            if let Ok(root_e) = q_root.single() {
+                let start_path = env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("/")).join("assets");
+                let filters = vec![
+                    FileFilter { name: "All Files (*.*)".to_string(), extensions: vec!["*.*".to_string()] },
+                    FileFilter { name: "Text File (*.txt)".to_string(), extensions: vec!["*.txt".to_string()] },
+                ];
+                
+                commands.entity(root_e).with_children(|ui| {
+                    let mut local_ui = ui.reborrow();
+                    match dialog_mode {
+                        DialogTrigger::Open => { spawn_file_dialog(&mut local_ui, "Open File", FileDialogMode::Open, start_path, None, filters); }
+                        DialogTrigger::Save => { spawn_file_dialog(&mut local_ui, "Save File", FileDialogMode::Save, start_path.clone(), Some(start_path), filters); }
+                    }
+                });
+            }
         }
-    }
-}*/
-
-/// Rota el cubo automáticamente para darle dinamismo a la escena 3D y probar el renderizado
+    });
+}
 fn auto_rotate_cube(
     time: Res<Time>,
     mut query: Query<&mut Transform, With<TestCube>>,
@@ -292,39 +235,6 @@ fn auto_rotate_cube(
     }
 }
 
-/// Escucha los clics de nuestros botones de prueba e invoca al File Dialog.
-fn handle_buttons(
-    mut commands: Commands,
-    q_interactions: Query<(&Interaction, &DialogTrigger), Changed<Interaction>>,
-    q_root: Query<Entity, With<MainUiRoot>>,
-) {
-    let root_entity = if let Some(e) = q_root.iter().next() { e } else { return; };
-    
-    for (interaction, trigger) in &q_interactions {
-        if *interaction == Interaction::Pressed {
-            commands.entity(root_entity).with_children(|parent| {
-                let start_path = env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("/")).join("assets");
-                
-                let filters = vec![
-                    FileFilter { name: "All Files (*.*)".to_string(), extensions: vec!["*.*".to_string()] },
-                    FileFilter { name: "Text File (*.txt)".to_string(), extensions: vec!["*.txt".to_string()] },
-                    FileFilter { name: "Tar Archive (*.tar.gz)".to_string(), extensions: vec!["*.tar.gz".to_string()] },
-                ];
-                
-                match trigger {
-                    DialogTrigger::Open => {
-                        spawn_file_dialog(parent, "Open File", FileDialogMode::Open, start_path.clone(), None, filters.clone());
-                    }
-                    DialogTrigger::Save => {
-                        spawn_file_dialog(parent, "Save File", FileDialogMode::Save, start_path.clone(), Some(start_path.clone()), filters.clone());
-                    }
-                }
-            });
-        }
-    }
-}
-
-/// Lee los eventos generados por el File Dialog y muestra el resultado en la consola.
 fn listen_to_file_dialog_messages(
     mut ev_selected: MessageReader<RuiFileSelected>,
     mut ev_canceled: MessageReader<RuiFileCanceled>,
@@ -332,44 +242,9 @@ fn listen_to_file_dialog_messages(
     for ev in ev_selected.read() {
         println!("¡Archivo seleccionado! Ruta: {:?}", ev.path);
     }
-    
     for _ in ev_canceled.read() {
         println!("Selección de archivo cancelada.");
     }
 }
 
-/* 
-/// Mantiene el Viewport de la Cámara 3D sincronizado con el tamaño y posición del Panel Central
-fn update_camera_viewport(
-    ui_query: Query<(&GlobalTransform, &ComputedNode, &ViewVisibility), With<ViewportPanel>>,
-    mut camera_query: Query<&mut Camera, With<ViewportCamera>>,
-    window_query: Query<&Window, With<bevy::window::PrimaryWindow>>,
-) {
-    let Ok((transform, node, view_vis)) = ui_query.single() else { return };
-    let Ok(mut camera) = camera_query.single_mut() else { return };
-    let Ok(window) = window_query.single() else { return };
-
-    let size = node.size();
-    if size.x <= 0.0 || size.y <= 0.0 || !view_vis.get() {
-        camera.is_active = false;
-        return;
-    }
-    camera.is_active = true;
-
-    // Convertimos la posición de la UI (basada en el centro) a coordenadas físicas (top-left) de la pantalla
-    let scale_factor = window.scale_factor();
-    let pos = transform.translation();
-    
-    let physical_size = UVec2::new((size.x * scale_factor) as u32, (size.y * scale_factor) as u32);
-    let physical_pos = UVec2::new(
-        ((pos.x - size.x / 2.0) * scale_factor).max(0.0) as u32,
-        ((pos.y - size.y / 2.0) * scale_factor).max(0.0) as u32,
-    );
-
-    // Le aplicamos el candado a la visión de la cámara
-    camera.viewport = Some(bevy::camera::Viewport {
-        physical_position: physical_pos,
-        physical_size,
-        ..default()
-    });
-} */
+pub fn handle_buttons() {}

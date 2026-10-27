@@ -36,45 +36,51 @@ fn setup(mut commands: Commands) {
         height: Val::Percent(100.0),
         ..default()
     }).with_children(|root| {
+        let mut root_ui = root.reborrow();
         
         // Creamos la capa Canvas exclusiva para la cámara UI
-        root.canvas_layer(ui_camera, |_|{}, |canvas| {
+        root_ui.canvas_layer(ui_camera, |_|{}, |canvas| {
+            let mut c = canvas.reborrow();
             
             // ==========================================
             // HUD: ARRIBA IZQUIERDA (Puntaje y Monedas)
             // ==========================================
-            canvas.hbox(|n| {
+            c.reborrow().hbox(|n| {
                 n.position_type = PositionType::Absolute;
                 n.left = Val::Px(30.0);
                 n.top = Val::Px(30.0);
                 n.width = Val::Auto;
                 n.height = Val::Auto;
             }, |top_left| {
+                let mut tl = top_left.reborrow();
                 
                 // Puntaje (Score)
-                top_left.vbox(|n| {
+                tl.reborrow().vbox(|n| {
                     n.margin = UiRect::right(Val::Px(30.0));
                     n.width = Val::Auto;
                     n.height = Val::Auto;
                 }, |score| {
-                    score.label("MANGO - Player", |font, color| {
+                    let mut s1 = score.reborrow();
+                    s1.reborrow().label("MANGO - Player", |font, color| {
                         font.font_size = bevy::prelude::FontSize::Px(28.0);
                         color.0 = Color::WHITE;
                     });
-                    score.label("000000", |font, color| {
+                    let mut s2 = score.reborrow();
+                    s2.reborrow().label("000000", |font, color| {
                         font.font_size = bevy::prelude::FontSize::Px(24.0);
                         color.0 = Color::WHITE;
                     });
                 });
                 
                 // Monedas (Coins)
-                top_left.hbox(|n| {
+                tl.reborrow().hbox(|n| {
                     n.align_items = AlignItems::Center;
                     n.width = Val::Auto;
                     n.height = Val::Auto;
                 }, |coins| {
+                    let mut co = coins.reborrow();
                     // Círculo simulando la moneda de oro
-                    coins.spawn((
+                    co.reborrow().spawn((
                         Node {
                             width: Val::Px(16.0),
                             height: Val::Px(24.0),
@@ -82,10 +88,11 @@ fn setup(mut commands: Commands) {
                             border_radius: BorderRadius::all(Val::Px(8.0)),
                             ..default()
                         },
-                        ImageNode::solid_color(Color::srgb(1.0, 0.8, 0.1)), // Amarillo/Dorado
+                        ImageNode::solid_color(Color::srgb(1.0, 0.8, 0.1)),
                     ));
                     
-                    coins.label("x 00", |font, color| {
+                    let mut co2 = coins.reborrow();
+                    co2.reborrow().label("x 00", |font, color| {
                         font.font_size = bevy::prelude::FontSize::Px(24.0);
                         color.0 = Color::WHITE;
                     });
@@ -95,9 +102,8 @@ fn setup(mut commands: Commands) {
             // ==========================================
             // HUD: ARRIBA CENTRO (Mundo / Nivel)
             // ==========================================
-            canvas.vbox(|n| {
+            c.reborrow().vbox(|n| {
                 n.position_type = PositionType::Absolute;
-                // Anclamos al centro y centramos los textos
                 n.left = Val::Px(0.0);
                 n.right = Val::Px(0.0);
                 n.top = Val::Px(30.0);
@@ -106,17 +112,20 @@ fn setup(mut commands: Commands) {
                 n.width = Val::Auto;
                 n.height = Val::Auto;
             }, |world| {
-                world.label("WORLD", |font, color| {
+                let mut w = world.reborrow();
+                w.reborrow().label("WORLD", |font, color| {
                     font.font_size = bevy::prelude::FontSize::Px(28.0);
                     color.0 = Color::WHITE;
                 });
-                world.label("1-1", |font, color| {
+                let mut w2 = world.reborrow();
+                w2.reborrow().label("1-1", |font, color| {
                     font.font_size = bevy::prelude::FontSize::Px(24.0);
                     color.0 = Color::WHITE;
                 });
                 
-                // Progress Bar (Ejemplo: Nivel de progreso, Estamina, etc)
-                world.progress_bar(0.0, 100.0, 35.0, |n| {
+                // Progress Bar
+                let mut w3 = world.reborrow();
+                w3.reborrow().progress_bar(0.0, 100.0, 35.0, |n| {
                     n.width = Val::Px(150.0);
                     n.height = Val::Px(12.0);
                     n.margin = UiRect::top(Val::Px(10.0));
@@ -126,7 +135,7 @@ fn setup(mut commands: Commands) {
             // ==========================================
             // HUD: ARRIBA DERECHA (Tiempo y Settings)
             // ==========================================
-            canvas.hbox(|n| {
+            c.reborrow().hbox(|n| {
                 n.position_type = PositionType::Absolute;
                 n.right = Val::Px(30.0);
                 n.top = Val::Px(30.0);
@@ -134,38 +143,42 @@ fn setup(mut commands: Commands) {
                 n.width = Val::Auto;
                 n.height = Val::Auto;
             }, |top_right| {
+                let mut tr = top_right.reborrow();
                 
                 // Tiempo
-                top_right.vbox(|n| {
+                tr.reborrow().vbox(|n| {
                     n.margin = UiRect::right(Val::Px(30.0));
                     n.align_items = AlignItems::Center;
                     n.width = Val::Auto;
                     n.height = Val::Auto;
                 }, |time| {
-                    time.label("TIME", |font, color| {
+                    let mut t1 = time.reborrow();
+                    t1.reborrow().label("TIME", |font, color| {
                         font.font_size = bevy::prelude::FontSize::Px(28.0);
                         color.0 = Color::WHITE;
                     });
-                    time.label("400", |font, color| {
+                    let mut t2 = time.reborrow();
+                    t2.reborrow().label("400", |font, color| {
                         font.font_size = bevy::prelude::FontSize::Px(24.0);
                         color.0 = Color::WHITE;
                     });
                 });
                 
                 // Botón de Settings
-                top_right.button(|n| {
+                let mut tr2 = top_right.reborrow();
+                tr2.reborrow().button(|n| {
                     n.width = Val::Px(50.0);
                     n.height = Val::Px(50.0);
-                    n.border_radius = BorderRadius::all(Val::Px(25.0)); // Totalmente redondo
+                    n.border_radius = BorderRadius::all(Val::Px(25.0));
                     n.margin = UiRect::top(Val::Px(10.0));
                 }, |b| {
-                    b.label("⚙", |font, color| {
+                    let mut btn = b.reborrow();
+                    btn.reborrow().label("⚙", |font, color| {
                         font.font_size = bevy::prelude::FontSize::Px(30.0);
                         color.0 = Color::WHITE;
                     }).insert(RuiThemeElement::ButtonText);
                 }).insert(RuiButtonStateColors {
-                    // Colores temáticos llamativos
-                    normal: Color::srgb(0.8, 0.1, 0.2),  // Rojo intenso (Mario)
+                    normal: Color::srgb(0.8, 0.1, 0.2),
                     hovered: Color::srgb(0.9, 0.2, 0.3),
                     pressed: Color::srgb(0.6, 0.05, 0.1),
                 });

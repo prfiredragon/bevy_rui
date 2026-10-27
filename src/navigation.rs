@@ -51,7 +51,6 @@ impl Default for RuiNavigationBindings {
         }
     }
 }
-
 #[derive(Message, Clone, Debug)]
 pub struct RuiClickEvent {
     pub entity: Entity,
@@ -99,6 +98,16 @@ pub fn check_buttons(buttons: &[GamepadButton], gamepads: &Query<&Gamepad>) -> b
     })
 }
 
+/// Función pura de soporte para extraer el vector direccional de forma compacta sin desbordar el buffer
+fn get_navigation_vector(b: &RuiNavigationBindings, k: &ButtonInput<KeyCode>, g: &Query<&Gamepad>) -> Vec2 {
+    let mut v = Vec2::ZERO;
+    if check_keys(k, &b.up_keys) || check_buttons(&b.up_buttons, g) { v.y += 1.0; }
+    if check_keys(k, &b.down_keys) || check_buttons(&b.down_buttons, g) { v.y -= 1.0; }
+    if check_keys(k, &b.left_keys) || check_buttons(&b.left_buttons, g) { v.x -= 1.0; }
+    if check_keys(k, &b.right_keys) || check_buttons(&b.right_buttons, g) { v.x += 1.0; }
+    v
+}
+
 pub fn navigate_ui_system(
     bindings: Res<RuiNavigationBindings>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -111,53 +120,27 @@ pub fn navigate_ui_system(
     sliders: Query<(), With<crate::widgets::slider::RuiSlider>>,
 ) {
     if !config.enabled { return; }
-
     let now = time.elapsed_secs();
     if now - *last_nav_time < 0.15 { return; }
 
-    let mut move_dir = Vec2::ZERO;
-
-    if check_keys(&keys, &bindings.up_keys) || check_buttons(&bindings.up_buttons, &gamepads) {
-        move_dir.y += 1.0;
-    }
-    if check_keys(&keys, &bindings.down_keys) || check_buttons(&bindings.down_buttons, &gamepads) {
-        move_dir.y -= 1.0;
-    }
-    if check_keys(&keys, &bindings.left_keys) || check_buttons(&bindings.left_buttons, &gamepads) {
-        move_dir.x -= 1.0;
-    }
-    if check_keys(&keys, &bindings.right_keys) || check_buttons(&bindings.right_buttons, &gamepads) {
-        move_dir.x += 1.0;
-    }
+    let mut move_dir = get_navigation_vector(&bindings, &keys, &gamepads);
 
     if let Some(focus_entity) = navigator.input_focus() {
-        if sliders.get(focus_entity).is_ok() {
-            move_dir.x = 0.0;
-        }
+        if sliders.get(focus_entity).is_ok() { move_dir.x = 0.0; }
     }
+    if move_dir.length_squared() < 0.1 { return; }
 
-    if move_dir.length_squared() < 0.1 {
-        return;
-    }
-
-    let maybe_direction = Dir2::from_xy(move_dir.x, move_dir.y)
-        .ok()
-        .map(CompassOctant::from);
-
-    if let Some(direction) = maybe_direction {
+    if let Some(direction) = Dir2::from_xy(move_dir.x, move_dir.y).ok().map(CompassOctant::from) {
         if navigator.input_focus().is_none() {
             if let Some(entity) = navigable.iter().next() {
                 navigator.manual_directional_navigation.focus.set(entity, FocusCause::Navigated);
                 *last_nav_time = now;
             }
-        } else {
-            if navigator.navigate(direction).is_ok() {
-                *last_nav_time = now;
-            }
+        } else if navigator.navigate(direction).is_ok() {
+            *last_nav_time = now;
         }
     }
 }
-
 pub fn trigger_ui_click_system(
     bindings: Res<RuiNavigationBindings>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -167,9 +150,7 @@ pub fn trigger_ui_click_system(
     config: Res<RuiNavigationConfig>,
 ) {
     if !config.enabled { return; }
-    
     let Some(focused_entity) = input_focus.get() else { return; };
-
     if check_keys(&keys, &bindings.accept_keys) || check_buttons(&bindings.accept_buttons, &gamepads) {
         click_events.write(RuiClickEvent { entity: focused_entity });
     }
@@ -178,24 +159,25 @@ pub fn trigger_ui_click_system(
 pub fn simulate_click_visuals_system(
     mut commands: Commands,
     mut click_events: MessageReader<RuiClickEvent>,
-    mut interactions: Query<&mut Interaction, Without<RuiSimulateClick>>,
-    mut simulate_tasks: Query<(Entity, &mut Interaction, &mut RuiSimulateClick)>,
+    q_simulate_tasks: Query<(Entity, &RuiSimulateClick)>,
     time: Res<Time>,
 ) {
     for ev in click_events.read() {
-        if let Ok(mut interaction) = interactions.get_mut(ev.entity) {
-            *interaction = Interaction::Pressed;
-            if let Ok(mut e_cmds) = commands.get_entity(ev.entity) {
-                e_cmds.try_insert(RuiSimulateClick::default());
-            }
+        if let Ok(mut e_cmds) = commands.get_entity(ev.entity) {
+            e_cmds.try_insert((bevy::ui::Pressed, RuiSimulateClick::default()));
         }
     }
-
-    for (entity, mut interaction, mut task) in &mut simulate_tasks {
-        task.0.tick(time.delta());
-        if task.0.just_finished() {
-            *interaction = Interaction::Hovered;
-            commands.entity(entity).remove::<RuiSimulateClick>();
+    for (entity, task) in &q_simulate_tasks {
+        let mut updated_task = RuiSimulateClick(task.0.clone());
+        updated_task.0.tick(time.delta());
+        if updated_task.0.just_finished() {
+            if let Ok(mut e_cmds) = commands.get_entity(entity) {
+                e_cmds.remove::<bevy::ui::Pressed>();
+                e_cmds.try_insert(bevy::picking::hover::Hovered(true));
+                e_cmds.remove::<RuiSimulateClick>();
+            }
+        } else if let Ok(mut e_cmds) = commands.get_entity(entity) {
+            e_cmds.insert(updated_task);
         }
     }
 }

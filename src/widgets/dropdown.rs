@@ -1,6 +1,8 @@
 use bevy::prelude::*;
-use crate::widgets::{RuiButtonStateColors, RuiBuilderExt};
+use bevy::ui_widgets::{Activate, MenuButton, MenuPopup, MenuLayout, MenuItem};
+use crate::widgets::RuiButtonStateColors;
 
+/// Estado del dropdown (abierto/cerrado) y referencias a entidades internas.
 #[derive(Component)]
 pub struct RuiDropdown {
     pub popup_entity: Entity,
@@ -8,150 +10,188 @@ pub struct RuiDropdown {
     pub is_open: bool,
 }
 
+/// Componente en cada opción del dropdown.
 #[derive(Component)]
 pub struct RuiDropdownOption {
     pub dropdown_entity: Entity,
     pub value: String,
 }
 
-pub fn spawn_dropdown<'a>(
-    parent_cmd: &'a mut ChildSpawnerCommands,
+/// Crea un dropdown nativo usando MenuButton + MenuPopup + MenuItem de Bevy 0.20.
+pub fn spawn_dropdown<'w>(
+    parent_cmd: &'w mut ChildSpawnerCommands<'w>,
     default_value: &str,
     options: &[&str],
     modifier: impl FnOnce(&mut Node),
-) -> EntityCommands<'a> {
-        let mut s = Node {
-            padding: UiRect::all(Val::Px(4.0)),
-            justify_content: JustifyContent::SpaceBetween,
-            align_items: AlignItems::Center,
-            ..default()
-        };
-        modifier(&mut s);
-        let colors = RuiButtonStateColors::default();
-        let mut cmds = parent_cmd.spawn((s, Button, crate::focus::Focusable, bevy::ui::FocusPolicy::Block, colors.clone(), ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(colors.normal) }));
-        cmds.with_children(|parent| {
-            let header_id = parent.target_entity();
-            let text_id = parent.spawn((
-                Text::new(default_value), 
-                TextFont::default(), 
-                TextColor(Color::WHITE),
-                TextLayout::justify(Justify::Left).with_no_wrap(),
-                Node { overflow: Overflow::clip(), flex_shrink: 1.0, min_width: Val::Px(0.0), ..default() }
-            )).id();
-            parent.spawn((Text::new("▼"), TextFont::default(), TextColor(Color::WHITE)));
-            let popup_id = parent.commands().spawn((
-                Node { display: Display::None, position_type: PositionType::Absolute, flex_direction: FlexDirection::Column, width: Val::Px(150.0), border: UiRect::all(Val::Px(1.0)), ..default() },
-                ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.15, 0.15, 0.15)) }, BorderColor::all(Color::srgb(0.3, 0.3, 0.3)), ZIndex(500), bevy::ui::FocusPolicy::Block,
-                  GlobalZIndex(100), 
-                  crate::theme::RuiThemeElement::DropdownBg,
-            )).with_children(|popup| {
-                popup.scrollview(|_|{}, |scroll| {
-                    for opt in options {
-                        scroll.spawn((
-                            Node { width: Val::Percent(100.0), padding: UiRect::all(Val::Px(8.0)), ..default() },
-                            Button, crate::focus::Focusable, bevy::ui::FocusPolicy::Block, Pickable::default(),
-                            RuiButtonStateColors { normal: Color::NONE, hovered: Color::srgb(0.25, 0.25, 0.35), pressed: Color::srgb(0.1, 0.1, 0.2) },
-                            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::NONE) },
-                            RuiDropdownOption { dropdown_entity: header_id, value: opt.to_string() },
-                            crate::theme::RuiThemeElement::ListItem,
-                        )).with_children(|opt_btn| {
-                            opt_btn.spawn((
-                                Text::new(*opt), 
-                                TextFont::default(), 
-                                TextColor(Color::WHITE),
-                                TextLayout::justify(Justify::Left).with_no_wrap(),
-                                Node { overflow: Overflow::clip(), flex_shrink: 1.0, min_width: Val::Px(0.0), ..default() },
-                                crate::theme::RuiThemeElement::Text,
-                            ));
-                        });
+) -> EntityCommands<'w> {
+    let mut header_node = Node {
+        padding: UiRect::all(Val::Px(4.0)),
+        justify_content: JustifyContent::SpaceBetween,
+        align_items: AlignItems::Center,
+        overflow: Overflow::visible(),
+        ..default()
+    };
+    modifier(&mut header_node);
+
+    let colors = RuiButtonStateColors::default();
+
+    let mut cmds = parent_cmd.spawn((
+        header_node,
+        bevy::ui_widgets::Button,
+        MenuButton,
+        crate::focus::Focusable,
+        colors.clone(),
+        ImageNode::default(),
+        BackgroundColor(colors.normal),
+        crate::theme::RuiThemeElement::Button,
+    ));
+
+    let header_id = cmds.id();
+    let mut text_id = Entity::PLACEHOLDER;
+    let mut popup_id = Entity::PLACEHOLDER;
+
+    cmds.with_children(|parent| {
+        // Texto que muestra el valor seleccionado
+        text_id = parent.spawn((
+            Text::new(default_value),
+            TextFont::default(),
+            TextColor(Color::WHITE),
+            TextLayout { linebreak: LineBreak::NoWrap, justify: Justify::Left },
+            Node {
+                overflow: Overflow::clip(),
+                flex_shrink: 1.0,
+                min_width: Val::Px(0.0),
+                flex_grow: 1.0,
+                ..default()
+            },
+            crate::theme::RuiThemeElement::Text,
+        )).id();
+
+        // Flecha indicadora
+        parent.spawn((
+            Text::new("▼"),
+            TextFont { font_size: bevy::prelude::FontSize::Px(12.0), ..default() },
+            TextColor(Color::WHITE),
+            crate::theme::RuiThemeElement::Text,
+        ));
+
+        // ── POPUP (hijo del header, posicionado justo abajo) ──────────────────
+        let options_owned: Vec<String> = options.iter().map(|s| s.to_string()).collect();
+        popup_id = parent.spawn((
+            Node {
+                display: Display::None,
+                position_type: PositionType::Absolute,
+                flex_direction: FlexDirection::Column,
+                bottom: Val::Percent(100.0),
+                left: Val::Px(0.0),
+                min_width: Val::Percent(100.0),
+                border: UiRect::all(Val::Px(1.0)),
+                ..default()
+            },
+            ZIndex(500),
+            MenuPopup { layout: MenuLayout::Column },
+            GlobalZIndex(500),
+            ImageNode::default(),
+            BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
+            BorderColor::from(Color::srgb(0.3, 0.3, 0.3)),
+            crate::theme::RuiThemeElement::DropdownBg,
+            bevy::ui::FocusPolicy::Block,
+        )).with_children(move |popup| {
+            // Cada opción es un MenuItem nativo
+            for (i, opt) in options_owned.iter().enumerate() {
+                let opt_str = opt.clone();
+                let item_id = popup.spawn((
+                    Node {
+                        width: Val::Percent(100.0),
+                        min_width: Val::Px(0.0),
+                        height: Val::Px(32.0),
+                        padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    MenuItem,
+                    bevy::input_focus::tab_navigation::TabIndex(i as i32),
+                    bevy::ui_widgets::Button,
+                    RuiButtonStateColors {
+                        normal: Color::NONE,
+                        hovered: Color::srgb(0.25, 0.25, 0.35),
+                        pressed: Color::srgb(0.1, 0.1, 0.15),
+                    },
+                    ImageNode::default(),
+                    BackgroundColor(Color::NONE),
+                    RuiDropdownOption { dropdown_entity: header_id, value: opt_str.clone() },
+                    crate::theme::RuiThemeElement::ListItem,
+                    bevy::ui::FocusPolicy::Block,
+                    Pickable::default(),
+                )).with_children(|btn| {
+                    btn.spawn((
+                        Text::new(opt_str),
+                        TextFont::default(),
+                        TextColor(Color::WHITE),
+                        TextLayout { linebreak: LineBreak::NoWrap, justify: Justify::Left },
+                        Node { overflow: Overflow::clip(), flex_shrink: 1.0, min_width: Val::Px(0.0), ..default() },
+                        crate::theme::RuiThemeElement::Text,
+                    ));
+                }).id();
+
+                // Observer en cada ítem: Activate se dispara al hacer clic o presionar Enter/Space
+                popup.commands().entity(item_id).observe(
+                    move |trigger: On<Activate>,
+                          q_opt: Query<&RuiDropdownOption>,
+                          mut q_dropdown: Query<&mut RuiDropdown>,
+                          mut q_node: Query<&mut Node>,
+                          mut commands: Commands,
+                          mut q_dialog: Query<&mut crate::widgets::file_dialog::RuiFileDialog>|
+                    {   
+                        let item_entity = trigger.entity;
+                        if let Ok(option) = q_opt.get(item_entity) {
+                            let val2 = option.value.clone();
+                            let dropdown_entity = option.dropdown_entity;
+
+                            // Actualizar el texto del header y cerrar el popup
+                            if let Ok(mut dropdown) = q_dropdown.get_mut(dropdown_entity) {
+                                let te = dropdown.text_entity;
+                                commands.entity(te).insert(Text::new(val2));
+
+                                dropdown.is_open = false;
+                                let popup_e = dropdown.popup_entity;
+                                if let Ok(mut node) = q_node.get_mut(popup_e) {
+                                    node.display = Display::None;
+                                }
+                            }
+
+                            // Notificar file_dialog si corresponde
+                            for mut dialog in q_dialog.iter_mut() {
+                                if dialog.filter_dropdown == Some(dropdown_entity) {
+                                    dialog.needs_refresh = true;
+                                }
+                            }
+                        }
                     }
-                });
-            }).id();
-            parent.commands().entity(header_id).insert(RuiDropdown { popup_entity: popup_id, text_entity: text_id, is_open: false });
-        });
-        cmds
-}
-
-pub fn handle_dropdown_clicks(
-    q_interactions: Query<(Entity, &Interaction, Option<&RuiDropdownOption>), Changed<Interaction>>,
-    mut q_dropdowns: Query<&mut RuiDropdown>,
-    mut q_popup: Query<&mut Node>,
-    mut q_text: Query<&mut Text>,
-    mut active_scope: ResMut<crate::focus::RuiActiveScope>,
-) {
-    for (entity, interaction, opt_option) in &q_interactions {
-        if *interaction == Interaction::Pressed {
-            if let Ok(mut dropdown) = q_dropdowns.get_mut(entity) {
-                dropdown.is_open = !dropdown.is_open;
-                if dropdown.is_open {
-                    active_scope.push_window(dropdown.popup_entity);
-                } else {
-                    active_scope.remove_window(dropdown.popup_entity);
-                }
-                if let Ok(mut node) = q_popup.get_mut(dropdown.popup_entity) { node.display = if dropdown.is_open { Display::Flex } else { Display::None }; }
+                );
             }
-            if let Some(option) = opt_option {
-                if let Ok(mut dropdown) = q_dropdowns.get_mut(option.dropdown_entity) {
-                    dropdown.is_open = false;
-                    active_scope.remove_window(dropdown.popup_entity);
-                    if let Ok(mut node) = q_popup.get_mut(dropdown.popup_entity) { node.display = Display::None; }
-                    if let Ok(mut text) = q_text.get_mut(dropdown.text_entity) { text.0 = option.value.clone(); }
-                }
+        }).id();
+    });
+
+    // Insertar RuiDropdown con el ID real del popup
+    cmds.insert(RuiDropdown { popup_entity: popup_id, text_entity: text_id, is_open: false });
+
+    // Observador en el botón del encabezado para alternar (abrir/cerrar) el popup al hacer clic
+    cmds.observe(|trigger: On<Activate>, mut q_dropdown: Query<&mut RuiDropdown>, mut q_node: Query<&mut Node>| {
+        let header_entity = trigger.entity;
+        if let Ok(mut dropdown) = q_dropdown.get_mut(header_entity) {
+            dropdown.is_open = !dropdown.is_open;
+            let is_open = dropdown.is_open;
+            let popup_e = dropdown.popup_entity;
+
+            if let Ok(mut node) = q_node.get_mut(popup_e) {
+                node.display = if is_open { Display::Flex } else { Display::None };
             }
         }
-    }
+    });
+
+    cmds
 }
 
-pub fn close_dropdowns_on_outside_click(
-    mouse: Res<ButtonInput<MouseButton>>,
-    mut q_dropdowns: Query<(&Interaction, &mut RuiDropdown)>,
-    mut q_popup: Query<&mut Node>,
-    mut active_scope: ResMut<crate::focus::RuiActiveScope>,
-) {
-    if mouse.just_pressed(MouseButton::Left) {
-        for (interaction, mut dropdown) in &mut q_dropdowns {
-            if dropdown.is_open && *interaction == Interaction::None {
-                dropdown.is_open = false;
-                active_scope.remove_window(dropdown.popup_entity);
-                if let Ok(mut node) = q_popup.get_mut(dropdown.popup_entity) { node.display = Display::None; }
-            }
-        }
-    }
-}
-
-pub fn update_dropdown_positions(
-    q_window: Query<&Window, With<bevy::window::PrimaryWindow>>,
-    q_dropdowns: Query<(&RuiDropdown, &bevy::ui::UiGlobalTransform, &ComputedNode)>,
-    mut q_popups: Query<&mut Node, Without<RuiDropdown>>,
-) {
-    let Some(window) = q_window.iter().next() else { return; };
-
-    for (dropdown, transform, computed) in &q_dropdowns {
-        if dropdown.is_open {
-            if let Ok(mut popup_node) = q_popups.get_mut(dropdown.popup_entity) {
-                let pos = transform.to_scale_angle_translation().2;
-                let size = computed.size();
-                
-                let scale_factor = window.scale_factor();
-                
-                let logical_pos_x = pos.x / scale_factor;
-                let logical_pos_y = pos.y / scale_factor;
-                let logical_size_x = size.x / scale_factor;
-                let logical_size_y = size.y / scale_factor;
-                
-                let top_px = logical_pos_y + logical_size_y / 2.0;
-                
-                popup_node.left = Val::Px(logical_pos_x - logical_size_x / 2.0);
-                popup_node.top = Val::Px(top_px);
-                popup_node.width = Val::Px(logical_size_x);
-                
-                // Asegurar que el menú no se salga de la pantalla, acortándolo con scroll
-                let window_height = window.height();
-                let margin_bottom = 10.0;
-                if top_px < window_height {
-                    popup_node.max_height = Val::Px(window_height - top_px - margin_bottom);
-                }
-            }
-        }
-    }
-}
+pub fn update_dropdown_positions() {}
+pub fn close_dropdowns_on_outside_click() {}

@@ -1,4 +1,6 @@
 use bevy::prelude::*;
+use bevy::ui_widgets::Activate;
+use bevy::text::FontSize;
 use crate::focus::Focusable;
 use crate::widgets::RuiButtonStateColors;
 
@@ -22,49 +24,11 @@ pub enum RuiIcon {
     Texture(Handle<Image>),
 }
 
-/// Sistema para manejar la apertura de submenús y el cierre de otros.
-pub fn handle_menu_interactions(
-    mouse: Res<ButtonInput<MouseButton>>,
-    mut triggers: Query<(&Interaction, &mut RuiSubmenuTrigger)>,
-    mut popups: Query<&mut Node>,
-) {
-    if mouse.just_pressed(MouseButton::Left) {
-        let mut clicked_outside = true;
-        let mut pressed_depth = None;
-
-        for (interaction, trigger) in &triggers {
-            if *interaction == Interaction::Pressed {
-                clicked_outside = false;
-                pressed_depth = Some(trigger.depth);
-            }
-        }
-        
-        for (interaction, mut trigger) in &mut triggers {
-            if *interaction == Interaction::Pressed {
-                trigger.is_open = !trigger.is_open;
-                if let Ok(mut node) = popups.get_mut(trigger.popup_entity) {
-                    node.display = if trigger.is_open { Display::Flex } else { Display::None };
-                }
-            } else {
-                // Cierra si se hizo clic fuera, o si se hizo clic en un submenú del mismo nivel (cierra hermanos)
-                if clicked_outside || (pressed_depth.is_some() && trigger.depth == pressed_depth.unwrap()) {
-                    if trigger.is_open {
-                        trigger.is_open = false;
-                        if let Ok(mut node) = popups.get_mut(trigger.popup_entity) {
-                            node.display = Display::None;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-pub fn spawn_menu_bar<'a>(
-    parent: &'a mut ChildSpawnerCommands,
+pub fn spawn_menu_bar<'w>(
+    parent: &'w mut ChildSpawnerCommands<'w>,
     modifier: impl FnOnce(&mut Node),
     children: impl FnOnce(&mut ChildSpawnerCommands),
-) -> EntityCommands<'a> {
+) -> EntityCommands<'w> {
     let mut s = Node {
         display: Display::Flex,
         flex_direction: FlexDirection::Row,
@@ -78,68 +42,65 @@ pub fn spawn_menu_bar<'a>(
 
     let mut cmds = parent.spawn((
         s,
-        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.12, 0.12, 0.12)) },
+        ImageNode::default(),
+        BackgroundColor(Color::srgb(0.12, 0.12, 0.12)),
         RuiMenuBar::default(),
     ));
 
     cmds.with_children(children);
     cmds
 }
-
-pub fn spawn_submenu<'a>(
-    parent: &'a mut ChildSpawnerCommands,
+pub fn spawn_submenu<'w>(
+    parent: &'w mut ChildSpawnerCommands<'w>,
     label: &str,
     icon: Option<RuiIcon>,
     depth: u32,
     modifier: impl FnOnce(&mut Node),
     children: impl FnOnce(&mut ChildSpawnerCommands),
-) -> EntityCommands<'a> {
+) -> EntityCommands<'w> {
     let mut s = Node {
         width: Val::Auto,
         height: Val::Px(30.0),
-        padding: UiRect::horizontal(Val::Px(8.0)),
+        padding: UiRect::horizontal(Val::Px(12.0)),
         align_items: AlignItems::Center,
         justify_content: JustifyContent::SpaceBetween,
+        position_type: PositionType::Relative, // Actúa como anclaje espacial de Bevy 0.20
         ..default()
     };
     modifier(&mut s);
 
-    let mut popup_id = Entity::PLACEHOLDER;
-    let colors = RuiButtonStateColors {
-        normal: Color::NONE,
-        hovered: Color::srgb(0.25, 0.25, 0.35),
-        pressed: Color::srgb(0.15, 0.15, 0.2),
-    };
+    let normal_color = Color::NONE;
+    let hover_color = Color::srgb(0.25, 0.25, 0.35);
 
     let mut cmds = parent.spawn((
-        Button,
+        bevy::ui_widgets::Button, 
         s,
-        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::NONE) },
-        colors,
+        ImageNode::default(),
+        BackgroundColor(normal_color),
+        RuiButtonStateColors { normal: normal_color, hovered: hover_color, pressed: Color::srgb(0.15, 0.15, 0.2) },
         Focusable,
+        Pickable::default(),
     ));
 
+    let header_id = cmds.id();
+    let mut popup_id = Entity::PLACEHOLDER;
+
     cmds.with_children(|inner| {
+        // Contenedor Plano Horizontal para la etiqueta e icono internos
         inner.spawn(Node {
             flex_direction: FlexDirection::Row,
             align_items: AlignItems::Center,
             ..default()
         }).with_children(|row| {
-            // Spawn Icono
             if let Some(icon_type) = icon {
                 row.spawn(Node {
-                    width: Val::Px(16.0),
-                    height: Val::Px(16.0),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    ..default()
+                    width: Val::Px(16.0), height: Val::Px(16.0),
+                    justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default()
                 }).with_children(|icon_box| {
                     match icon_type {
                         RuiIcon::Emoji(e, font_opt) => {
-                            let mut text_font = TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() };
-                            if let Some(f) = font_opt {
-                                text_font.font = bevy::prelude::FontSource::Handle(f);
-                            }
+                            let mut text_font = TextFont { font_size: FontSize::Px(14.0), ..default() };
+                            if let Some(f) = font_opt { text_font.font = FontSource::Handle(f); }
                             icon_box.spawn((Text::new(e), text_font, TextColor(Color::WHITE)));
                         },
                         RuiIcon::Texture(h) => {
@@ -147,33 +108,31 @@ pub fn spawn_submenu<'a>(
                         }
                     }
                 });
-                // Espacio entre icono y texto
                 row.spawn(Node { width: Val::Px(8.0), ..default() });
             } else {
-                // Espacio extra si no hay icono para alinear los textos
-                row.spawn(Node { width: Val::Px(24.0), ..default() });
+                row.spawn(Node { width: Val::Px(12.0), ..default() });
             }
 
-            // Label
             row.spawn((
                 Text::new(label),
-                TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() },
+                TextFont { font_size: FontSize::Px(14.0), ..default() },
                 TextColor(Color::WHITE),
             ));
         });
 
-        // Flecha si es submenú y estamos dentro de otro menú (depth > 0)
         if depth > 0 {
             inner.spawn((
                 Text::new(">"),
-                TextFont { font_size: bevy::prelude::FontSize::Px(12.0), ..default() },
+                TextFont { font_size: FontSize::Px(12.0), ..default() },
                 TextColor(Color::srgb(0.5, 0.5, 0.5)),
             ));
         }
 
+        // CORRECCIÓN DE ANCLAJE: Determinamos las coordenadas CSS-in-Rust exactas basadas en la profundidad
         let popup_left = if depth == 0 { Val::Px(0.0) } else { Val::Percent(100.0) };
         let popup_top = if depth == 0 { Val::Percent(100.0) } else { Val::Px(0.0) };
 
+        // CORRECCIÓN DE COLAPSO: Spawneamos el popup como entidad flotante paralela con GlobalZIndex
         popup_id = inner.spawn((
             Node {
                 display: Display::None,
@@ -186,26 +145,86 @@ pub fn spawn_submenu<'a>(
                 min_width: Val::Px(160.0),
                 ..default()
             },
-            ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::srgb(0.15, 0.15, 0.16)) },
-            BorderColor::all(Color::BLACK),
-            ZIndex(100 + depth as i32),
-            GlobalZIndex(100 + depth as i32),
+            ImageNode::default(),
+            BackgroundColor(Color::srgb(0.15, 0.15, 0.16)),
+            BorderColor::from(Color::BLACK),
+            ZIndex(500 + depth as i32),
+            GlobalZIndex(500 + depth as i32), // Forzamos elevación absoluta en la GPU
         )).with_children(children).id();
     });
-
     cmds.insert(RuiSubmenuTrigger { is_open: false, depth, popup_entity: popup_id });
+
+    // Observador de Sobrevuelo (Hover In)
+    cmds.observe(move |_: On<PointerOver>, mut query: Query<&mut BackgroundColor>| {
+        if let Ok(mut bg) = query.get_mut(header_id) { bg.0 = hover_color; }
+    });
+
+    // Observador de Sobrevuelo (Hover Out)
+    cmds.observe(move |_: On<PointerOut>, mut query: Query<&mut BackgroundColor>| {
+        if let Ok(mut bg) = query.get_mut(header_id) { bg.0 = normal_color; }
+    });
+
+    // CORRECCIÓN REACTIVA DE CIERRE: Validamos basándonos en la entidad del trigger para evitar bucles de desvanecimiento automáticos
+    cmds.observe(
+        move |trigger: On<Activate>,
+              mut q_triggers: Query<(Entity, &mut RuiSubmenuTrigger)>,
+              mut q_popups: Query<&mut Node>| 
+        {
+            let target_entity = trigger.entity;
+            let mut pressed_depth = None;
+            
+            if let Ok((_, mut trigger_data)) = q_triggers.get_mut(target_entity) {
+                trigger_data.is_open = !trigger_data.is_open;
+                pressed_depth = Some(trigger_data.depth);
+                
+                if let Ok(mut node) = q_popups.get_mut(trigger_data.popup_entity) {
+                    node.display = if trigger_data.is_open { Display::Flex } else { Display::None };
+                }
+            }
+
+            // CORRECCIÓN DEFINITIVA: Filtramos comparando la entidad de control (e != target_entity) para no auto-cerrarnos
+            if let Some(depth) = pressed_depth {
+                for (e, mut other_trigger) in &mut q_triggers {
+                    if other_trigger.depth == depth && e != target_entity {
+                        if other_trigger.is_open {
+                            other_trigger.is_open = false;
+                            if let Ok(mut node) = q_popups.get_mut(other_trigger.popup_entity) {
+                                node.display = Display::None;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    );
+
     cmds
 }
 
-/// Helper para spawnear un ítem de menú (hoja sin submenú) con icono opcional
-pub fn spawn_menu_item<'a>(
-    parent: &'a mut ChildSpawnerCommands,
+pub fn close_menus_on_outside_click(
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut q_triggers: Query<&mut RuiSubmenuTrigger>,
+    mut q_popups: Query<&mut Node>,
+) {
+    if mouse.just_pressed(MouseButton::Left) {
+        for mut trigger in &mut q_triggers {
+            if trigger.is_open {
+                trigger.is_open = false;
+                if let Ok(mut node) = q_popups.get_mut(trigger.popup_entity) {
+                    node.display = Display::None;
+                }
+            }
+        }
+    }
+}
+pub fn spawn_menu_item<'w>(
+    parent: &'w mut ChildSpawnerCommands<'w>,
     label: &str,
     icon: Option<RuiIcon>,
     modifier: impl FnOnce(&mut Node),
-) -> EntityCommands<'a> {
+) -> EntityCommands<'w> {
     let mut s = Node {
-        width: Val::Auto,
+        width: Val::Percent(100.0), // Forzamos estiramiento completo dentro del vbox flotante
         height: Val::Px(30.0),
         padding: UiRect::horizontal(Val::Px(8.0)),
         align_items: AlignItems::Center,
@@ -214,36 +233,39 @@ pub fn spawn_menu_item<'a>(
     };
     modifier(&mut s);
 
-    let colors = RuiButtonStateColors {
-        normal: Color::NONE,
-        hovered: Color::srgb(0.25, 0.25, 0.35),
-        pressed: Color::srgb(0.15, 0.15, 0.2),
-    };
+    let normal_item = Color::NONE;
+    let hover_item = Color::srgb(0.25, 0.25, 0.35);
 
     let mut cmds = parent.spawn((
-        Button,
+        bevy::ui_widgets::Button, 
         s,
-        ImageNode { visual_box: bevy::ui::VisualBox::BorderBox, image_mode: bevy::ui::widget::NodeImageMode::Stretch, ..ImageNode::solid_color(Color::NONE) },
-        colors,
+        ImageNode::default(),
+        BackgroundColor(normal_item),
+        RuiButtonStateColors { normal: normal_item, hovered: hover_item, pressed: Color::srgb(0.15, 0.15, 0.2) },
         Focusable,
+        Pickable::default(),
     ));
 
+    let item_id = cmds.id();
+
+    cmds.observe(move |_: On<PointerOver>, mut query: Query<&mut BackgroundColor>| {
+        if let Ok(mut bg) = query.get_mut(item_id) { bg.0 = hover_item; }
+    });
+
+    cmds.observe(move |_: On<PointerOut>, mut query: Query<&mut BackgroundColor>| {
+        if let Ok(mut bg) = query.get_mut(item_id) { bg.0 = normal_item; }
+    });
+
     cmds.with_children(|row| {
-        // Spawn Icono
         if let Some(icon_type) = icon {
             row.spawn(Node {
-                width: Val::Px(16.0),
-                height: Val::Px(16.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
+                width: Val::Px(16.0), height: Val::Px(16.0),
+                justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default()
             }).with_children(|icon_box| {
                 match icon_type {
                     RuiIcon::Emoji(e, font_opt) => {
-                        let mut text_font = TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() };
-                        if let Some(f) = font_opt {
-                            text_font.font = bevy::prelude::FontSource::Handle(f);
-                        }
+                        let mut text_font = TextFont { font_size: FontSize::Px(14.0), ..default() };
+                        if let Some(f) = font_opt { text_font.font = FontSource::Handle(f); }
                         icon_box.spawn((Text::new(e), text_font, TextColor(Color::WHITE)));
                     },
                     RuiIcon::Texture(h) => {
@@ -251,26 +273,17 @@ pub fn spawn_menu_item<'a>(
                     }
                 }
             });
-            // Espacio entre icono y texto
             row.spawn(Node { width: Val::Px(8.0), ..default() });
         } else {
-            // Espacio extra si no hay icono para alinear el texto de este item con otros que sí tengan
             row.spawn(Node { width: Val::Px(24.0), ..default() });
         }
 
-        // Label
         row.spawn((
             Text::new(label),
-            TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() },
+            TextFont { font_size: FontSize::Px(14.0), ..default() },
             TextColor(Color::WHITE),
         ));
     });
 
     cmds
-}
-#[derive(Bundle)]
-pub struct RuiMenuBarBundle {
-    pub node: Node,
-    pub background: ImageNode,
-    pub marker: RuiMenuBar,
 }
