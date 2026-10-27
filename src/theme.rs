@@ -547,6 +547,30 @@ border: BorderRect::all(theme.list_item_margin),
 }
 }
 }
+RuiThemeElement::Window => {
+    // Fondo de ventana: usa la textura de panel si existe; si no, el color sólido.
+    if let Some(mut image_node) = opt_image_node {
+        if let Some(ref texture_handle) = theme.image_panel {
+            bg_color.0 = Color::NONE;
+            image_node.image = texture_handle.clone();
+            image_node.color = Color::WHITE;
+            image_node.image_mode = if theme.panel_margin > 0.0 {
+                NodeImageMode::Sliced(TextureSlicer {
+                    border: BorderRect::all(theme.panel_margin),
+                    ..default()
+                })
+            } else {
+                NodeImageMode::Stretch
+            };
+        } else {
+            bg_color.0 = theme.color_panel;
+            // Sin textura: ocultamos la imagen blanca por defecto para que se vea el color de fondo.
+            image_node.color = Color::NONE;
+        }
+    } else {
+        bg_color.0 = theme.color_panel;
+    }
+}
 RuiThemeElement::Panel => {
 bg_color.0 = theme.color_panel;
 if let Some(mut image_node) = opt_image_node {

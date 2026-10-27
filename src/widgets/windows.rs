@@ -45,6 +45,8 @@ pub fn spawn_window<'w>(
     let mut cmds = parent_cmd.spawn((
         s,
         BackgroundColor(Color::srgb(0.18, 0.18, 0.18)),
+        // Textura de fondo (image_panel del tema). El tema la oculta si no hay textura.
+        ImageNode { color: Color::NONE, ..default() },
         BorderColor::from(Color::BLACK), // Contorno negro sólido garantizado
         crate::theme::RuiThemeElement::Window,
         ZIndex(100),
