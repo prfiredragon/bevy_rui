@@ -93,15 +93,8 @@ pub fn spawn_file_dialog<'w>(
                 let str_refs: Vec<&str> = filter_strings.iter().map(|s| s.as_str()).collect();
                 
                 let mut drop_bind = bp.reborrow();
-                let mut drop_cmds = crate::widgets::dropdown::spawn_dropdown(&mut drop_bind, str_refs[0], &str_refs, |s| {
+                let drop_cmds = crate::widgets::dropdown::spawn_dropdown(&mut drop_bind, str_refs[0], &str_refs, |s| {
                     s.width = Val::Px(200.0); s.min_width = Val::Px(200.0); s.height = Val::Px(30.0); s.flex_shrink = 0.0; s.margin = UiRect::right(Val::Px(15.0));
-                });
-                
-                // CORRECCIÓN INTERACTIVA DIRECTA: Amarramos un observador al dropdown que fuerza el refresco inmediato al cambiar de extensión
-                drop_cmds.observe(move |_: On<Activate>, mut q_dialog: Query<&mut RuiFileDialog>| {
-                    if let Ok(mut dialog) = q_dialog.get_mut(dialog_id) {
-                        dialog.needs_refresh = true;
-                    }
                 });
                 
                 filter_dropdown_entity = Some(drop_cmds.id());
@@ -121,8 +114,9 @@ pub fn spawn_file_dialog<'w>(
                         if let Some(drop_ent) = dialog.filter_dropdown {
                             if let Ok(dropdown) = q_drop.get(drop_ent) {
                                 if let Ok(dropdown_text) = q_texts.get(dropdown.text_entity) {
-                                    let selected_filter_name = &dropdown_text.0;
-                                    if let Some(filter) = dialog.filters.iter().find(|f| &f.name == selected_filter_name) {
+                                    // CORRECCIÓN REACTIVA CONFIRMAR: Extraemos la string pura mediante .to_string()
+                                    let selected_filter_name = dropdown_text.to_string();
+                                    if let Some(filter) = dialog.filters.iter().find(|f| f.name == selected_filter_name) {
                                         if let Some(first_ext) = filter.extensions.first() {
                                             if first_ext != "*" && first_ext != "*.*" {
                                                 let clean_ext = first_ext.strip_prefix("*.").unwrap_or(first_ext);
@@ -195,8 +189,17 @@ pub fn update_file_list_ui(
     asset_server: Res<AssetServer>,
     q_dropdowns: Query<&crate::widgets::dropdown::RuiDropdown>,
     q_texts: Query<&Text, Without<RuiFilePathText>>,
+    q_changed_texts: Query<Entity, (Changed<Text>, Without<RuiFilePathText>)>,
 ) {
     for (dialog_entity, mut dialog) in &mut q_dialogs {
+        if let Some(dropdown_entity) = dialog.filter_dropdown {
+            if let Ok(dropdown) = q_dropdowns.get(dropdown_entity) {
+                if q_changed_texts.contains(dropdown.text_entity) {
+                    dialog.needs_refresh = true;
+                }
+            }
+        }
+
         if !dialog.needs_refresh { continue; }
         dialog.needs_refresh = false;
         
@@ -213,8 +216,12 @@ pub fn update_file_list_ui(
         if let Some(dropdown_entity) = dialog.filter_dropdown {
             if let Ok(dropdown) = q_dropdowns.get(dropdown_entity) {
                 if let Ok(dropdown_text) = q_texts.get(dropdown.text_entity) {
-                    let selected_filter_name = &dropdown_text.0;
-                    if let Some(filter) = dialog.filters.iter().find(|f| &f.name == selected_filter_name) { active_extensions = filter.extensions.clone(); }
+                    // CORRECCIÓN MAESTRA DE FILTRADO: Convertimos el struct Text a una String literal limpia
+                    // Esto sanea la coincidencia estática contra el array de filtros de extensiones de archivos.
+                    let selected_filter_name = dropdown_text.to_string();
+                    if let Some(filter) = dialog.filters.iter().find(|f| f.name == selected_filter_name) { 
+                        active_extensions = filter.extensions.clone(); 
+                    }
                 }
             }
         }
@@ -285,6 +292,6 @@ pub fn update_file_list_ui(
     }
 }
 
-pub fn handle_dropdown_change() {} // ELIMINADO FILTRO AGRESIVO POR FRAMES OBSOLETO
+pub fn handle_dropdown_change() {}
 pub fn handle_file_clicks() {}
 pub fn handle_dialog_buttons() {}
