@@ -29,6 +29,8 @@ impl Plugin for RuiPlugin {
         // El foco es independiente de los widgets
         app.add_plugins(focus::RuiFocusPlugin);
         app.add_plugins(navigation::RuiNavigationPlugin);
+        // Plugin nativo de Bevy 0.20 para MenuButton/MenuPopup/MenuItem
+        //app.add_plugins(bevy::ui_widgets::MenuPlugin);
         app.add_systems(Update,  widgets::resizer::handle_resizer_drag);
         // Los widgets ahora se encargan de sus propios sistemas y recursos
         app.add_plugins(widgets::RuiWidgets);
