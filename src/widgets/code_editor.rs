@@ -1,3 +1,8 @@
+//! Multi-line syntax-highlighted code editor widget powered by `ropey` and `syntect`.
+//!
+//! Supports line numbers (gutter), cursor blinking, keyboard navigation, text selection,
+//! copy/cut/paste via [`crate::widgets::RuiClipboard`], auto-indentation, and undo/redo history.
+
 use bevy::prelude::*;
 use syntect::parsing::SyntaxSet;
 use syntect::highlighting::ThemeSet;
@@ -5,10 +10,14 @@ use bevy::text::TextLayoutInfo;
 use bevy::ui::RelativeCursorPosition;
 use ropey::Rope;
 
+/// Resource holding `syntect` syntax definitions and color themes for [`RuiCodeEditor`].
 #[derive(Resource)]
 pub struct RuiSyntaxAssets {
+    /// Loaded `syntect` syntax set.
     pub syntax_set: SyntaxSet,
+    /// Loaded `syntect` theme set.
     pub theme_set: ThemeSet,
+    /// Name of the active syntax theme (defaults to `"base16-ocean.dark"`).
     pub default_theme: String,
 }
 
@@ -22,6 +31,7 @@ impl Default for RuiSyntaxAssets {
     }
 }
 
+/// Snapshot of [`RuiCodeEditor`] buffer and cursor state used for undo/redo stacks.
 #[derive(Clone, Default)]
 pub struct EditorState {
     pub text: Rope,
@@ -29,17 +39,28 @@ pub struct EditorState {
     pub selection: Option<(usize, usize)>,
 }
 
+/// Component holding the text rope buffer, language extension, cursor, scroll offset, and undo/redo state of a code editor.
 #[derive(Component)]
 pub struct RuiCodeEditor {
+    /// Text buffer stored as a `ropey::Rope`.
     pub text: Rope,
+    /// File extension used for syntax highlighting (e.g., `"rs"`, `"toml"`, `"json"`).
     pub language: String,
+    /// Optional placeholder string when empty.
     pub placeholder: String,
+    /// Blinking cursor timer.
     pub cursor_timer: Timer,
+    /// Whether the cursor bar is currently visible.
     pub show_cursor: bool,
+    /// Current character index of the caret.
     pub cursor_index: usize,
+    /// Current pixel scroll offset `(x, y)`.
     pub scroll_offset: Vec2,
+    /// When `true`, prevents text modification while still allowing navigation and copy.
     pub readonly: bool,
+    /// Optional `(start_char, end_char)` selection range.
     pub selection: Option<(usize, usize)>,
+    /// Selection anchor character index while shift-selecting or dragging.
     pub selection_anchor: Option<usize>,
     pub cursor_moved: bool,
     pub dragging_v_scroll: bool,
@@ -47,7 +68,9 @@ pub struct RuiCodeEditor {
     pub previous_cursor_index: usize,
     pub previous_text_len: usize,
     pub previous_focused: bool,
+    /// Undo history stack (up to 50 snapshots).
     pub undo_stack: Vec<EditorState>,
+    /// Redo history stack.
     pub redo_stack: Vec<EditorState>,
 }
 
@@ -64,12 +87,18 @@ impl Default for RuiCodeEditor {
     }
 }
 
+/// Marker component for the line-number gutter text node inside a [`RuiCodeEditor`].
 #[derive(Component)] pub struct RuiCodeEditorGutter;
+/// Marker component for the syntax-highlighted code text node inside a [`RuiCodeEditor`].
 #[derive(Component)] pub struct RuiCodeEditorText;
+/// Marker component for the selection highlight node inside a [`RuiCodeEditor`].
 #[derive(Component)] pub struct RuiCodeEditorSelection;
+/// Marker component for the blinking caret node inside a [`RuiCodeEditor`].
 #[derive(Component)] pub struct RuiCodeEditorCursor;
 
-// CORRECCIÓN: Unificación de lifetimes con &'w mut ChildSpawnerCommands<'w>
+/// Spawns a syntax-highlighted code editor widget with `initial_text` and syntax `language` (e.g., `"rs"`).
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::code_editor`].
 pub fn spawn_code_editor<'w>(
     parent_cmd: &'w mut ChildSpawnerCommands<'w>,
     initial_text: &str,
@@ -87,7 +116,7 @@ pub fn spawn_code_editor<'w>(
 
     let mut cmds = parent_cmd.spawn((
         root_node,
-        bevy::ui_widgets::Button, // Widget headless nativo de Bevy 0.20
+        bevy::ui_widgets::Button,
         crate::focus::Focusable,
         ImageNode::default(),
         crate::theme::RuiThemeElement::TextboxBg,
@@ -101,7 +130,7 @@ pub fn spawn_code_editor<'w>(
     ));
 
     cmds.with_children(|parent| {
-        // PANEL IZQUIERDO: GUTTER
+        // Left panel: line number gutter
         parent.spawn((
             Node {
                 display: Display::Flex, flex_direction: FlexDirection::Column,
@@ -117,7 +146,7 @@ pub fn spawn_code_editor<'w>(
             ));
         });
 
-        // PANEL DERECHO: ÁREA DE CÓDIGO
+        // Right panel: code text and cursor area
         parent.spawn((
             Node { display: Display::Flex, flex_grow: 1.0, height: Val::Percent(100.0), position_type: PositionType::Relative, overflow: Overflow::clip(), ..default() },
         )).with_children(|editor_area| {
@@ -141,8 +170,8 @@ use bevy::input_focus::InputFocus;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::widgets::RuiClipboard;
 
+/// System that processes keyboard input, shortcuts (`Ctrl+C/X/V/Z/Y/A`), and caret navigation for the focused [`RuiCodeEditor`].
 pub fn handle_code_editor_input(
-    // CORRECCIÓN: MessageReader pasó a consolidarse en EventReader para Inputs regulares
     mut events: MessageReader<KeyboardInput>,
     keys: Res<ButtonInput<KeyCode>>,
     focus: Res<InputFocus>,
@@ -330,6 +359,7 @@ use syntect::easy::HighlightLines;
 use syntect::highlighting::Style;
 use syntect::util::LinesWithEndings;
 
+/// System that updates line numbers, cursor position/visibility, and `syntect` syntax-highlighted [`TextSpan`]s.
 pub fn update_code_editor_visuals(
     mut commands: Commands, time: Res<Time>, focus: Res<InputFocus>,
     mut editor_query: Query<(Entity, &mut RuiCodeEditor, &Children, &ComputedNode)>, 
@@ -426,9 +456,9 @@ pub fn update_code_editor_visuals(
     }
 }
 
+/// System that positions the caret and updates text selection when clicking or dragging inside a [`RuiCodeEditor`].
 pub fn handle_code_editor_clicks(
     mouse: Res<ButtonInput<MouseButton>>, focus: Res<InputFocus>,
-    // CORRECCIÓN: Cambiado &Interaction por Option<&bevy::ui::Pressed> nativo reactivo de Bevy 0.20
     mut editor_query: Query<(Entity, &RelativeCursorPosition, Option<&bevy::ui::Pressed>, &ComputedNode, &Children, &mut RuiCodeEditor)>,
     text_query: Query<(&TextFont, Option<&TextLayoutInfo>), With<RuiCodeEditorText>>,
     children_query: Query<&Children>,

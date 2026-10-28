@@ -1,22 +1,36 @@
+//! Interactive horizontal numeric slider widget with mouse drag and keyboard/gamepad support.
+
 use bevy::prelude::*;
-// CORRECCIÓN DEFINITIVA DE RUTA: Traemos el trait Relationship nativo desde el preludio de Bevy 0.20
 use bevy::ecs::relationship::Relationship;
 use crate::widgets::RuiButtonStateColors;
 
+/// Component storing the numeric range, current `value`, and child entities of a slider widget.
 #[derive(Component)]
 pub struct RuiSlider {
+    /// Minimum slider value.
     pub min: f32,
+    /// Maximum slider value.
     pub max: f32,
+    /// Current clamped value in `[min, max]`.
     pub value: f32,
+    /// Entity ID of the draggable thumb handle.
     pub handle_entity: Entity,
+    /// Entity ID of the progress fill bar.
     pub fill_entity: Entity,
     pub dragging: bool,
     pub last_cursor_pos: Option<Vec2>,
 }
 
+/// Marker component for the draggable thumb handle of a [`RuiSlider`].
 #[derive(Component)] pub struct RuiSliderHandle;
+/// Marker component for the filled bar portion of a [`RuiSlider`].
 #[derive(Component)] pub struct RuiSliderFill;
 
+/// Spawns an interactive horizontal slider with range `[min, max]` and initial `value`.
+///
+/// Updates [`RuiSlider::value`] automatically on `PointerDrag` and when focused via keyboard/gamepad left/right keys.
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::slider`].
 pub fn spawn_slider<'w>(
     parent_cmd: &'w mut ChildSpawnerCommands<'w>,
     min: f32,
@@ -129,6 +143,7 @@ pub fn spawn_slider<'w>(
 
     cmds
 }
+/// System that updates the position of [`RuiSliderHandle`] and width of [`RuiSliderFill`] to match [`RuiSlider::value`].
 pub fn update_slider_visuals(
     q_slider: Query<(&RuiSlider, &ComputedNode)>,
     mut q_handles: Query<&mut Node, (With<RuiSliderHandle>, Without<RuiSliderFill>)>,
@@ -150,6 +165,7 @@ pub fn update_slider_visuals(
         }
     }
 }
+/// System that adjusts [`RuiSlider::value`] by 5% steps when the slider has [`bevy::input_focus::InputFocus`] and left/right navigation inputs are pressed.
 pub fn handle_slider_navigation(
     focus: Res<bevy::input_focus::InputFocus>,
     bindings: Res<crate::navigation::RuiNavigationBindings>,

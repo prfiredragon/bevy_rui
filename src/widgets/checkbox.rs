@@ -1,15 +1,26 @@
+//! Toggleable checkbox widget with a text label.
+
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
 use bevy::text::FontSize;
 use crate::widgets::RuiButtonStateColors;
 
+/// Component storing the boolean state of a checkbox widget and its inner checkmark entity.
 #[derive(Component)]
 pub struct RuiCheckbox {
+    /// Whether the checkbox is currently checked.
     pub checked: bool,
+    /// Entity of the inner checkmark icon whose [`Visibility`] is toggled.
     pub checkmark_entity: Entity,
 }
 
-// CORRECCIÓN: Ajustamos la firma con el tiempo de vida 'w unificado para evitar fallos de varianza
+/// Spawns a toggleable checkbox widget with `label_text` and initial `checked` state.
+///
+/// Automatically toggles [`RuiCheckbox::checked`] and updates checkmark visibility on [`Activate`].
+/// You can attach an additional `.observe(|trigger: On<Activate>, q: Query<&RuiCheckbox>| ...)`
+/// to react to state changes.
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::checkbox`].
 pub fn spawn_checkbox<'w>(
     parent_cmd: &'w mut ChildSpawnerCommands<'w>,
     label_text: &str,
@@ -31,10 +42,9 @@ pub fn spawn_checkbox<'w>(
             pressed: Color::srgba(1.0, 1.0, 1.0, 0.1),
         };
 
-        // Spawn inicial usando los componentes modernizados de Bevy 0.20
         let mut cmds = parent_cmd.spawn((
             s,
-            bevy::ui_widgets::Button, // Widget headless nativo
+            bevy::ui_widgets::Button,
             crate::focus::Focusable,
             colors,
             ImageNode::default(),
@@ -80,10 +90,8 @@ pub fn spawn_checkbox<'w>(
 
         let final_checkmark = checkmark_entity.unwrap();
 
-        // Inserción del componente del estado del checkbox
         cmds.insert(RuiCheckbox { checked, checkmark_entity: final_checkmark });
 
-        // CORRECCIÓN: Manejo de clics autocontenido de forma reactiva con observadores
         cmds.observe(
             move |trigger: On<Activate>, 
                   mut q_checkbox: Query<&mut RuiCheckbox>, 

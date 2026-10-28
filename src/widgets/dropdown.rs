@@ -1,23 +1,35 @@
+//! Dropdown select menu widget built on Bevy 0.20's `MenuButton`, `MenuPopup`, and `MenuItem`.
+
 use bevy::prelude::*;
 use bevy::ui_widgets::{Activate, MenuButton, MenuPopup, MenuLayout, MenuItem};
 use crate::widgets::RuiButtonStateColors;
 
-/// Estado del dropdown (abierto/cerrado) y referencias a entidades internas.
+/// Component storing the open/closed state of a dropdown widget and references to its popup and header text entities.
 #[derive(Component)]
 pub struct RuiDropdown {
+    /// Entity ID of the floating popup list container.
     pub popup_entity: Entity,
+    /// Entity ID of the [`Text`] node displaying the currently selected option.
     pub text_entity: Entity,
+    /// Whether the dropdown options popup is currently visible.
     pub is_open: bool,
 }
 
-/// Componente en cada opción del dropdown.
+/// Component attached to each selectable option item inside a dropdown popup.
 #[derive(Component)]
 pub struct RuiDropdownOption {
+    /// Entity ID of the owning [`RuiDropdown`] header button.
     pub dropdown_entity: Entity,
+    /// String value assigned when this option is selected.
     pub value: String,
 }
 
-/// Crea un dropdown nativo usando MenuButton + MenuPopup + MenuItem de Bevy 0.20.
+/// Spawns a dropdown select menu initialized to `default_value` with selectable `options`.
+///
+/// Automatically updates the displayed [`Text`] on `RuiDropdown::text_entity` and closes the popup
+/// when an option is activated.
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::dropdown`].
 pub fn spawn_dropdown<'w>(
     parent_cmd: &'w mut ChildSpawnerCommands<'w>,
     default_value: &str,
@@ -193,5 +205,7 @@ pub fn spawn_dropdown<'w>(
     cmds
 }
 
+/// Placeholder system kept for backwards compatibility.
 pub fn update_dropdown_positions() {}
+/// Placeholder system kept for backwards compatibility.
 pub fn close_dropdowns_on_outside_click() {}

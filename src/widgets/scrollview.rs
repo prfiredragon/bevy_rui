@@ -1,19 +1,31 @@
+//! Scrollable container widget with automatic vertical and horizontal scrollbars.
+
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
+/// Component storing the pixel scroll offset and scrollbar drag state of a scroll view.
 #[derive(Component, Default)]
 pub struct RuiScrollView {
+    /// Current scroll offset `(x, y)` in pixels.
     pub scroll_offset: Vec2,
     pub dragging_v_scroll: bool,
     pub dragging_h_scroll: bool,
 }
 
+/// Marker component for the inner content container inside a [`RuiScrollView`].
 #[derive(Component)] pub struct RuiScrollContent;
+/// Marker component for the vertical scrollbar track inside a [`RuiScrollView`].
 #[derive(Component)] pub struct RuiVerticalScrollbar;
+/// Marker component for the horizontal scrollbar track inside a [`RuiScrollView`].
 #[derive(Component)] pub struct RuiHorizontalScrollbar;
+/// Marker component for the vertical draggable scrollbar thumb.
 #[derive(Component)] pub struct RuiScrollThumbV;
+/// Marker component for the horizontal draggable scrollbar thumb.
 #[derive(Component)] pub struct RuiScrollThumbH;
 
+/// Spawns a scrollable container (`Overflow::clip()`) with mouse wheel support and draggable vertical/horizontal scrollbars.
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::scrollview`].
 pub fn spawn_scrollview<'w>(
     parent_cmd: &'w mut ChildSpawnerCommands<'w>,
     modifier: impl FnOnce(&mut Node),
@@ -71,7 +83,6 @@ pub fn spawn_scrollview<'w>(
                 Pickable { should_block_lower: true, is_hoverable: true },
             ));
             
-            // CORRECCIÓN DEFINITIVA: El observador escucha el arrastre directamente en el Thumb que recibe el impacto
             thumb_v.observe(move |on_drag: On<PointerDrag>, mut q_scroll: Query<(&mut RuiScrollView, &ComputedNode)>, q_content: Query<&ComputedNode, With<RuiScrollContent>>| {
                 if let Ok((mut scroll, comp)) = q_scroll.get_mut(scrollview_id) {
                     if let Ok(content_comp) = q_content.get(content_id) {
@@ -110,7 +121,6 @@ pub fn spawn_scrollview<'w>(
                 Pickable { should_block_lower: true, is_hoverable: true },
             ));
             
-            // CORRECCIÓN DEFINITIVA: El observador escucha el arrastre directamente en el Thumb que recibe el impacto
             thumb_h.observe(move |on_drag: On<PointerDrag>, mut q_scroll: Query<(&mut RuiScrollView, &ComputedNode)>, q_content: Query<&ComputedNode, With<RuiScrollContent>>| {
                 if let Ok((mut scroll, comp)) = q_scroll.get_mut(scrollview_id) {
                     if let Ok(content_comp) = q_content.get(content_id) {
@@ -133,6 +143,7 @@ pub fn spawn_scrollview<'w>(
 }
 use bevy::input::mouse::MouseWheel;
 
+/// System that scrolls the hovered [`RuiScrollView`] in response to [`MouseWheel`] events.
 pub fn handle_scrollview_scroll(
     mut events: MessageReader<MouseWheel>,
     mut query: Query<(&RelativeCursorPosition, &mut RuiScrollView)>,
@@ -149,8 +160,10 @@ pub fn handle_scrollview_scroll(
     }
 }
 
+/// Placeholder system kept for backwards compatibility.
 pub fn handle_scrollview_clicks() {}
 
+/// System that clamps [`RuiScrollView::scroll_offset`], shifts [`RuiScrollContent`], and updates scrollbar thumb sizes/positions.
 pub fn update_scrollview_visuals(
     mut q_scrollview: Query<(&RelativeCursorPosition, &mut RuiScrollView, &ComputedNode, &Children)>,
     mut q_content: Query<(&mut Node, &ComputedNode), (With<RuiScrollContent>, Without<RuiVerticalScrollbar>, Without<RuiHorizontalScrollbar>)>,

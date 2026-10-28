@@ -1,39 +1,66 @@
+//! Global theming system for `bevy_rui`.
+//!
+//! Provides [`RuiTheme`] for configuring fonts, colors, borders, and 9-slice (`NodeImageMode::Sliced`)
+//! textures, and [`RuiThemeElement`] to bind UI entities to a specific theme role.
+
 use bevy::prelude::*;
 use bevy::ui::widget::NodeImageMode;
 use bevy::picking::hover::Hovered;
 use bevy::ui::Pressed;
 
-/// Componente para identificar el rol de un nodo de UI dentro del tema global.
+/// Component identifying the visual role of a UI node within the global [`RuiTheme`].
 #[derive(Component, Debug, Clone, PartialEq, Eq)]
 pub enum RuiThemeElement {
+    /// Generic background panel.
     Panel,
+    /// Floating window container background.
     Window,
+    /// Interactive button surface.
     Button,
+    /// Selectable list item or menu row.
     ListItem,
+    /// Draggable window title bar.
     WindowHeader,
+    /// Textbox or code editor background box.
     TextboxBg,
+    /// Unchecked checkbox box background.
     CheckboxBg,
+    /// Checked checkbox inner mark icon.
     CheckboxIcon,
+    /// Dropdown popup list background.
     DropdownBg,
+    /// Slider background track.
     SliderTrack,
+    /// Slider draggable thumb/handle.
     SliderHandle,
+    /// Standard body or label text.
     Text,
+    /// Text inside a button.
     ButtonText,
+    /// Text inside a window header bar.
     WindowHeaderText,
+    /// Scrollbar gutter track.
     ScrollbarTrack,
+    /// Scrollbar draggable thumb.
     ScrollbarThumb,
+    /// Inactive tab header button.
     Tab,
+    /// Active tab header button.
     TabActive,
+    /// Progress bar background track.
     ProgressBarTrack,
+    /// Progress bar or slider fill bar.
     ProgressBarFill,
+    /// Context menu popup container background.
     ContextMenuBg,
 }
 
-/// Recurso global que define los estilos (fuentes, colores, y texturas/ninepatch).
+/// Global resource defining visual styles (fonts, colors, borders, and 9-slice textures) for `bevy_rui` widgets.
 #[derive(Resource, Clone)]
 pub struct RuiTheme {
-    // Fonts
+    /// Primary UI font handle (defaults to `"fonts/afacad.ttf"`).
     pub font: Handle<Font>,
+    /// Optional fallback font handle for emoji icons.
     pub font_emoji: Option<Handle<Font>>,
 
     // Colors
@@ -211,6 +238,7 @@ impl FromWorld for RuiTheme {
     }
 }
 
+/// Legacy theme application system operating directly on [`ImageNode`].
 pub fn apply_rui_theme_old(
     mut commands: Commands,
     theme: Res<RuiTheme>,
@@ -450,6 +478,7 @@ pub fn apply_rui_theme_old(
 
 
 
+/// System that applies [`RuiTheme`] colors, borders, 9-slice textures, and fonts to entities with [`RuiThemeElement`].
 pub fn apply_rui_theme(
     mut _commands: Commands,
     theme: Res<RuiTheme>,

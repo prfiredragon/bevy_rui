@@ -1,17 +1,28 @@
+//! Single-line and multi-line editable text box widgets built on Bevy 0.20's native `TextInput` and `EditableText`.
+
 use bevy::prelude::*;
 use bevy::text::{EditableText, TextCursorStyle};
 use bevy::ui_widgets::TextInput;
 
+/// Line mode for a [`RuiTextBox`].
 #[derive(Reflect, Clone, PartialEq, Default)]
 pub enum RuiTextBoxMode {
+    /// Single-line text input (Enter does not insert newlines).
     #[default]
     SingleLine,
+    /// Multi-line text input (`allow_newlines: true`).
     MultiLine,
 }
 
+/// Component storing the synchronized text string, placeholder, and configuration of a text input box.
+///
+/// Mutating `RuiTextBox::text` from external systems (e.g., clearing it on button click) will automatically
+/// update the underlying native `EditableText` buffer in [`sync_native_textbox_buffers`].
 #[derive(Component)]
 pub struct RuiTextBox {
+    /// Current text content synchronized bidirectionally with Bevy's `EditableText`.
     pub text: String,
+    /// Dimmed placeholder text displayed when `text` is empty and the widget is not focused.
     pub placeholder: String,
     pub cursor_index: usize,
     pub mode: RuiTextBoxMode,
@@ -34,8 +45,8 @@ impl Default for RuiTextBox {
     }
 }
 
-/// Marcador del nodo visual que muestra el texto de guía (placeholder).
-/// Es SOLO visual: nunca forma parte del buffer `EditableText` ni de `RuiTextBox::text`.
+/// Marker component for the visual-only placeholder child node inside a [`RuiTextBox`].
+/// Never part of the `EditableText` buffer or `RuiTextBox::text`.
 #[derive(Component)]
 pub struct RuiTextBoxPlaceholder;
 
@@ -65,6 +76,10 @@ fn spawn_placeholder_child(cmds: &mut EntityCommands, placeholder: &str, font: &
     });
 }
 
+/// Spawns a single-line editable text box with `placeholder` text.
+///
+/// Read or modify the current text via the [`RuiTextBox`] component.
+/// Also available via [`crate::widgets::RuiBuilderExt::textbox`].
 pub fn spawn_textbox<'w>(
     parent_cmd: &'w mut ChildSpawnerCommands<'w>,
     placeholder: &str,
@@ -117,6 +132,9 @@ pub fn spawn_textbox<'w>(
 
     cmds
 }
+/// Spawns a multi-line editable text box (`allow_newlines: true`) with `placeholder` text.
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::multiline_textbox`].
 pub fn spawn_multiline_textbox<'w>(
     parent_cmd: &'w mut ChildSpawnerCommands<'w>,
     placeholder: &str,
@@ -173,6 +191,8 @@ pub fn spawn_multiline_textbox<'w>(
     cmds
 }
 
+/// System that bidirectionally synchronizes [`RuiTextBox::text`] with Bevy's native [`EditableText`]
+/// and toggles [`RuiTextBoxPlaceholder`] visibility.
 pub fn sync_native_textbox_buffers(
     mut q_textboxes: Query<(Entity, &mut RuiTextBox, &mut EditableText, Option<&Children>)>,
     mut q_placeholders: Query<&mut Visibility, With<RuiTextBoxPlaceholder>>,
@@ -218,5 +238,7 @@ pub fn sync_native_textbox_buffers(
     }
 }
 
+/// Placeholder system kept for backwards compatibility.
 pub fn handle_textbox_input() {}
+/// Placeholder system kept for backwards compatibility.
 pub fn handle_textbox_scroll() {}

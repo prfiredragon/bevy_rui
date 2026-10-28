@@ -1,28 +1,48 @@
+//! Directional UI navigation for keyboard and gamepads.
+//!
+//! Built on top of Bevy 0.20's `AutoDirectionalNavigator` and `InputFocus`.
+//! Enable navigation at runtime by setting [`RuiNavigationConfig::enabled`] to `true`.
+
 use bevy::{input_focus::{InputFocus, FocusCause}, prelude::*};
 use bevy::ui::auto_directional_navigation::AutoDirectionalNavigator;
 use bevy::math::CompassOctant;
 
+/// Configurable keyboard and gamepad input bindings for UI directional navigation.
 #[derive(Resource, Clone, Debug, Reflect)]
 #[reflect(Resource)]
 pub struct RuiNavigationBindings {
+    /// Keys that move focus upward (defaults to `ArrowUp`, `KeyW`).
     pub up_keys: Vec<KeyCode>,
+    /// Keys that move focus downward (defaults to `ArrowDown`, `KeyS`).
     pub down_keys: Vec<KeyCode>,
+    /// Keys that move focus left (defaults to `ArrowLeft`, `KeyA`).
     pub left_keys: Vec<KeyCode>,
+    /// Keys that move focus right (defaults to `ArrowRight`, `KeyD`).
     pub right_keys: Vec<KeyCode>,
+    /// Keys that activate/click the focused widget (defaults to `Enter`, `Space`).
     pub accept_keys: Vec<KeyCode>,
+    /// Keys that cancel or close the current menu/scope (defaults to `Escape`, `Backspace`).
     pub cancel_keys: Vec<KeyCode>,
 
+    /// Gamepad buttons that move focus upward (defaults to `DPadUp`).
     pub up_buttons: Vec<GamepadButton>,
+    /// Gamepad buttons that move focus downward (defaults to `DPadDown`).
     pub down_buttons: Vec<GamepadButton>,
+    /// Gamepad buttons that move focus left (defaults to `DPadLeft`).
     pub left_buttons: Vec<GamepadButton>,
+    /// Gamepad buttons that move focus right (defaults to `DPadRight`).
     pub right_buttons: Vec<GamepadButton>,
+    /// Gamepad buttons that activate/click the focused widget (defaults to `South`).
     pub accept_buttons: Vec<GamepadButton>,
+    /// Gamepad buttons that cancel or close the current scope (defaults to `East`).
     pub cancel_buttons: Vec<GamepadButton>,
 }
 
+/// Resource controlling whether directional keyboard/gamepad UI navigation is active.
 #[derive(Resource, Clone, Debug, Reflect)]
 #[reflect(Resource)]
 pub struct RuiNavigationConfig {
+    /// Whether directional navigation is enabled (`false` by default).
     pub enabled: bool,
 }
 
@@ -51,11 +71,15 @@ impl Default for RuiNavigationBindings {
         }
     }
 }
+
+/// Message emitted when the user presses an accept key/button on a focused UI entity.
 #[derive(Message, Clone, Debug)]
 pub struct RuiClickEvent {
+    /// The focused UI entity being activated.
     pub entity: Entity,
 }
 
+/// Temporary timer component inserted on an entity to briefly simulate [`bevy::ui::Pressed`] visuals.
 #[derive(Component)]
 pub struct RuiSimulateClick(pub Timer);
 
@@ -65,6 +89,7 @@ impl Default for RuiSimulateClick {
     }
 }
 
+/// Plugin registering [`RuiNavigationBindings`], [`RuiNavigationConfig`], [`RuiClickEvent`], and navigation systems.
 pub struct RuiNavigationPlugin;
 
 impl Plugin for RuiNavigationPlugin {
@@ -88,17 +113,19 @@ impl Plugin for RuiNavigationPlugin {
     }
 }
 
+/// Returns `true` if any of the specified [`KeyCode`]s were just pressed.
 pub fn check_keys(input: &ButtonInput<KeyCode>, keys: &[KeyCode]) -> bool {
     keys.iter().any(|k| input.just_pressed(*k))
 }
 
+/// Returns `true` if any of the specified [`GamepadButton`]s were just pressed on any connected gamepad.
 pub fn check_buttons(buttons: &[GamepadButton], gamepads: &Query<&Gamepad>) -> bool {
     buttons.iter().any(|b| {
         gamepads.iter().any(|g| g.just_pressed(*b))
     })
 }
 
-/// Función pura de soporte para extraer el vector direccional de forma compacta sin desbordar el buffer
+/// Computes the 2D directional navigation vector from keyboard and gamepad bindings.
 fn get_navigation_vector(b: &RuiNavigationBindings, k: &ButtonInput<KeyCode>, g: &Query<&Gamepad>) -> Vec2 {
     let mut v = Vec2::ZERO;
     if check_keys(k, &b.up_keys) || check_buttons(&b.up_buttons, g) { v.y += 1.0; }
@@ -108,6 +135,8 @@ fn get_navigation_vector(b: &RuiNavigationBindings, k: &ButtonInput<KeyCode>, g:
     v
 }
 
+/// System that moves [`InputFocus`] between navigable UI widgets using [`AutoDirectionalNavigator`].
+/// Horizontal navigation is suppressed when a [`crate::widgets::slider::RuiSlider`] is focused so left/right adjusts its value.
 pub fn navigate_ui_system(
     bindings: Res<RuiNavigationBindings>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -141,6 +170,8 @@ pub fn navigate_ui_system(
         }
     }
 }
+
+/// System that emits [`RuiClickEvent`] when an accept key or gamepad button is pressed on a focused widget.
 pub fn trigger_ui_click_system(
     bindings: Res<RuiNavigationBindings>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -156,6 +187,7 @@ pub fn trigger_ui_click_system(
     }
 }
 
+/// System that applies a brief [`bevy::ui::Pressed`] state on entities receiving [`RuiClickEvent`].
 pub fn simulate_click_visuals_system(
     mut commands: Commands,
     mut click_events: MessageReader<RuiClickEvent>,

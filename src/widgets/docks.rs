@@ -1,8 +1,15 @@
+//! Splittable dock layouts and tabbed dock panels for IDE/editor interfaces.
+//!
+//! Combine [`spawn_dock_split_horizontal`], [`spawn_dock_split_vertical`], and [`spawn_dock_panel`]
+//! (or their equivalents on [`crate::widgets::RuiBuilderExt`]) to construct nested, resizable dock layouts.
+
 use bevy::prelude::*;
 use crate::widgets::{RuiResizerDir, spawn_resizer};
 use crate::widgets::tabs::{spawn_tabs, RuiTabsBuilder};
 
-/// Spawns a horizontal split area (left and right panes with a resizer in between)
+/// Spawns a horizontal split area (left and right panes with a draggable [`crate::widgets::RuiResizer`] in between).
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::dock_split_horizontal`].
 pub fn spawn_dock_split_horizontal<'a>(
     parent: &'a mut ChildSpawnerCommands,
     left_width: Val,
@@ -59,7 +66,9 @@ pub fn spawn_dock_split_horizontal<'a>(
     cmds
 }
 
-/// Spawns a vertical split area (top and bottom panes with a resizer in between)
+/// Spawns a vertical split area (top and bottom panes with a draggable [`crate::widgets::RuiResizer`] in between).
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::dock_split_vertical`].
 pub fn spawn_dock_split_vertical<'a>(
     parent: &'a mut ChildSpawnerCommands,
     top_height: Val,
@@ -116,7 +125,9 @@ pub fn spawn_dock_split_vertical<'a>(
     cmds
 }
 
-/// Spawns a dock panel (which is currently a wrapper around tabs)
+/// Spawns a tabbed dock panel filling 100% of its parent pane (wrapper around [`spawn_tabs`]).
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::dock_panel`].
 pub fn spawn_dock_panel<'a>(
     parent: &'a mut ChildSpawnerCommands<'a>,
     active_tab: usize,

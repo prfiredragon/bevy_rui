@@ -1,3 +1,5 @@
+//! Floating, draggable window widget with a title bar, optional close button, and automatic z-ordering/focus scope management.
+
 use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
@@ -5,19 +7,29 @@ use bevy::ui_widgets::Activate;
 use bevy::text::FontSize;
 use crate::widgets::RuiButtonStateColors;
 
+/// Marker component identifying a floating `bevy_rui` window entity.
 #[derive(Component)]
 pub struct RuiWindow;
 
+/// Component attached to a window's title bar header linking it to its parent [`RuiWindow`] entity.
 #[derive(Component)]
 pub struct RuiWindowHeader {
     pub window_entity: Entity,
 }
 
+/// Component attached to a window's close (`"X"`) button linking it to its parent [`RuiWindow`] entity.
 #[derive(Component)]
 pub struct RuiWindowCloseButton {
     pub window_entity: Entity,
 }
 
+/// Spawns a floating, draggable window with `title`, an optional close button (`closable`),
+/// and a `children` closure receiving `(&mut ChildSpawnerCommands, window_entity)`.
+///
+/// Dragging the title bar translates the window via [`UiTransform`]. Clicking inside a window
+/// raises its [`ZIndex`] and sets it as the active scope in [`crate::focus::RuiActiveScope`].
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::window`].
 pub fn spawn_window<'w>(
     parent_cmd: &'w mut ChildSpawnerCommands<'w>,
     title: &str,
@@ -32,7 +44,6 @@ pub fn spawn_window<'w>(
         left: Val::Px(100.0),
         top: Val::Px(100.0),
         width: Val::Px(300.0),
-        // Espesor físico visible para el contorno de la ventana
         border: UiRect::all(Val::Px(2.0)),
         padding: UiRect::all(Val::Px(2.0)), 
         border_radius: BorderRadius::all(Val::Px(5.0)),
@@ -41,13 +52,11 @@ pub fn spawn_window<'w>(
     };
     modifier(&mut s);
 
-    // CORRECCIÓN DE BORDES: Removemos ImageNode para permitir que el contorno y el fondo convivan de forma nativa
     let mut cmds = parent_cmd.spawn((
         s,
         BackgroundColor(Color::srgb(0.18, 0.18, 0.18)),
-        // Textura de fondo (image_panel del tema). El tema la oculta si no hay textura.
         ImageNode { color: Color::NONE, ..default() },
-        BorderColor::from(Color::BLACK), // Contorno negro sólido garantizado
+        BorderColor::from(Color::BLACK),
         crate::theme::RuiThemeElement::Window,
         ZIndex(100),
         Pickable::default(),
@@ -95,7 +104,6 @@ pub fn spawn_window<'w>(
             }
         }).id();
 
-        // Sistema de arrastre fluido por deltas relativos sobre UiTransform
         parent.commands().entity(header_id).observe(
             move |on_drag: On<PointerDrag>, 
                   mut q_window: Query<&mut UiTransform, With<RuiWindow>>,
@@ -120,6 +128,8 @@ pub fn spawn_window<'w>(
     });
     cmds
 }
+
+/// System that pushes newly spawned [`RuiWindow`] entities onto [`crate::focus::RuiActiveScope`].
 pub fn handle_new_windows(
     mut active_scope: ResMut<crate::focus::RuiActiveScope>,
     query: Query<Entity, Added<RuiWindow>>,
@@ -129,6 +139,7 @@ pub fn handle_new_windows(
     }
 }
 
+/// System that raises a [`RuiWindow`]'s [`ZIndex`] and sets it as the active scope when clicked.
 pub fn handle_window_focus(
     mouse: Res<ButtonInput<MouseButton>>,
     q_interactions: Query<(Entity, &bevy::ui::Pressed)>,

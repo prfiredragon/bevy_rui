@@ -1,29 +1,44 @@
+//! Top menu bar, nested submenus, and icon-supported menu items.
+
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
 use bevy::text::FontSize;
 use crate::focus::Focusable;
 use crate::widgets::RuiButtonStateColors;
 
+/// Marker component for a horizontal menu bar container.
 #[derive(Component, Default)]
 pub struct RuiMenuBar;
 
+/// Component storing an action identifier for a menu item.
 #[derive(Component)]
 pub struct RuiMenuItem {
     pub action_id: String,
 }
 
+/// Component attached to a submenu trigger button tracking its nesting `depth`, open state, and popup entity.
 #[derive(Component)]
 pub struct RuiSubmenuTrigger {
+    /// Whether this submenu popup is currently open.
     pub is_open: bool,
+    /// Nesting depth (`0` for top-level menu bar items, `>= 1` for nested flyout submenus).
     pub depth: u32,
+    /// Entity ID of the floating popup container.
     pub popup_entity: Entity,
 }
 
+/// Icon representation for menu and context-menu items.
 pub enum RuiIcon {
+    /// Unicode/emoji string rendered with an optional custom emoji [`Font`] handle.
     Emoji(String, Option<Handle<Font>>),
+    /// Image texture handle rendered as a `16x16` [`ImageNode`].
     Texture(Handle<Image>),
 }
 
+/// Spawns a horizontal menu bar container (`height: 30px`, `width: 100%`).
+///
+/// Populate with [`spawn_submenu`] or [`spawn_menu_item`].
+/// Also available via [`crate::widgets::RuiBuilderExt::menu_bar`].
 pub fn spawn_menu_bar<'w>(
     parent: &'w mut ChildSpawnerCommands<'w>,
     modifier: impl FnOnce(&mut Node),
@@ -50,6 +65,13 @@ pub fn spawn_menu_bar<'w>(
     cmds.with_children(children);
     cmds
 }
+
+/// Spawns a submenu trigger button and its floating popup container.
+///
+/// - Set `depth = 0` for top-level menus in a [`RuiMenuBar`] (popup opens downward).
+/// - Set `depth >= 1` for nested submenus (popup opens to the right).
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::submenu`].
 pub fn spawn_submenu<'w>(
     parent: &'w mut ChildSpawnerCommands<'w>,
     label: &str,
@@ -128,11 +150,10 @@ pub fn spawn_submenu<'w>(
             ));
         }
 
-        // CORRECCIÓN DE ANCLAJE: Determinamos las coordenadas CSS-in-Rust exactas basadas en la profundidad
+        // Position popup below for depth 0 (menu bar) or to the right for nested submenus (depth > 0)
         let popup_left = if depth == 0 { Val::Px(0.0) } else { Val::Percent(100.0) };
         let popup_top = if depth == 0 { Val::Percent(100.0) } else { Val::Px(0.0) };
 
-        // CORRECCIÓN DE COLAPSO: Spawneamos el popup como entidad flotante paralela con GlobalZIndex
         popup_id = inner.spawn((
             Node {
                 display: Display::None,
@@ -164,7 +185,6 @@ pub fn spawn_submenu<'w>(
         if let Ok(mut bg) = query.get_mut(header_id) { bg.0 = normal_color; }
     });
 
-    // CORRECCIÓN REACTIVA DE CIERRE: Validamos basándonos en la entidad del trigger para evitar bucles de desvanecimiento automáticos
     cmds.observe(
         move |trigger: On<Activate>,
               mut q_triggers: Query<(Entity, &mut RuiSubmenuTrigger)>,
@@ -182,7 +202,6 @@ pub fn spawn_submenu<'w>(
                 }
             }
 
-            // CORRECCIÓN DEFINITIVA: Filtramos comparando la entidad de control (e != target_entity) para no auto-cerrarnos
             if let Some(depth) = pressed_depth {
                 for (e, mut other_trigger) in &mut q_triggers {
                     if other_trigger.depth == depth && e != target_entity {
@@ -201,6 +220,7 @@ pub fn spawn_submenu<'w>(
     cmds
 }
 
+/// System that closes all open [`RuiSubmenuTrigger`] popups when clicking with the left mouse button.
 pub fn close_menus_on_outside_click(
     mouse: Res<ButtonInput<MouseButton>>,
     mut q_triggers: Query<&mut RuiSubmenuTrigger>,
@@ -217,6 +237,13 @@ pub fn close_menus_on_outside_click(
         }
     }
 }
+
+/// Spawns a clickable menu item with `label` and optional [`RuiIcon`].
+///
+/// Automatically closes all open submenus on [`Activate`]. Attach `.observe(|_: On<Activate>| ...)`
+/// on the returned [`EntityCommands`] to handle the menu item action.
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::menu_item`].
 pub fn spawn_menu_item<'w>(
     parent: &'w mut ChildSpawnerCommands<'w>,
     label: &str,

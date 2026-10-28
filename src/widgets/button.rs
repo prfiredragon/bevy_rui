@@ -1,12 +1,21 @@
+//! Interactive button widget for `bevy_rui`.
+//!
+//! Spawns a headless Bevy [`bevy::ui_widgets::Button`] styled via [`crate::theme::RuiThemeElement::Button`]
+//! or per-entity [`RuiButtonStateColors`]. Listen for clicks by attaching `.observe(|_: On<Activate>| ...)`.
+
 use bevy::prelude::*;
 use bevy::picking::hover::Hovered;
 use bevy::ui::Pressed;
 use bevy::input_focus::InputFocus;
 
+/// Optional component overriding the default theme colors for a button's normal, hovered, and pressed states.
 #[derive(Component, Clone)]
 pub struct RuiButtonStateColors {
+    /// Background/tint color in the normal idle state.
     pub normal: Color,
+    /// Background/tint color when hovered or focused.
     pub hovered: Color,
+    /// Background/tint color when pressed or selected ([`RuiSelected`]).
     pub pressed: Color,
 }
 
@@ -20,7 +29,12 @@ impl Default for RuiButtonStateColors {
     }
 }
 
-// CORRECCIÓN: Introducción explícita del tiempo de vida 'w para ligar el Spawner de origen con los comandos retornados
+/// Spawns an interactive button with [`crate::theme::RuiThemeElement::Button`] and [`crate::focus::Focusable`].
+///
+/// Attach `.observe(|trigger: On<bevy::ui_widgets::Activate>| ...)` to the returned [`EntityCommands`]
+/// to handle click and keyboard/gamepad activation events.
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::button`].
 pub fn spawn_button<'w>(
     parent: &'w mut ChildSpawnerCommands<'w>,
     modifier: impl FnOnce(&mut Node),
@@ -35,11 +49,10 @@ pub fn spawn_button<'w>(
     };
     modifier(&mut s);
 
-    // Ajustado a los componentes headless modernos de Bevy 0.20
     let mut cmds = parent.spawn((
         s,
-        bevy::ui_widgets::Button, // Componente marcador headless nativo
-        ImageNode::default(),     // Ya no contiene visual_box o image_mode heredados
+        bevy::ui_widgets::Button,
+        ImageNode::default(),
         crate::theme::RuiThemeElement::Button,
         crate::focus::Focusable, 
     ));
@@ -48,11 +61,12 @@ pub fn spawn_button<'w>(
     cmds
 }
 
+/// Marker component indicating that a button or list item is currently in a selected state.
 #[derive(Component, Debug, Clone, PartialEq, Eq)]
 pub struct RuiSelected;
 
+/// System that updates button and list item colors/textures based on [`Hovered`], [`Pressed`], [`InputFocus`], and [`RuiSelected`].
 pub fn handle_button_colors(
-    // En Bevy 0.20 reemplazamos `&Interaction` por los componentes reactivos Option<&Hovered> y Option<&Pressed>
     mut query: Query<(
         Entity, 
         Option<&Hovered>, 
@@ -68,7 +82,6 @@ pub fn handle_button_colors(
     for (entity, hovered, pressed, mut image_node, theme_element, state_colors, is_selected) in &mut query {
         let is_focused = input_focus.get() == Some(entity);
         
-        // El estado se evalúa verificando si el componente respectivo está presente (is_some())
         let is_pressed = pressed.is_some() || is_selected;
         let is_hovered = hovered.is_some() || (is_focused && !is_pressed);
 
@@ -77,7 +90,6 @@ pub fn handle_button_colors(
             else if is_hovered { colors.hovered }
             else { colors.normal };
             
-            // En Bevy 0.20, el tinte/color de un ImageNode vive directamente en su propiedad .color
             if image_node.color != target_color {
                 image_node.color = target_color;
             }
