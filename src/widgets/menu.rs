@@ -224,7 +224,10 @@ pub fn spawn_menu_item<'w>(
     modifier: impl FnOnce(&mut Node),
 ) -> EntityCommands<'w> {
     let mut s = Node {
-        width: Val::Percent(100.0), // Forzamos estiramiento completo dentro del vbox flotante
+        // Ancho automático: dentro de un popup (columna con AlignItems::Stretch) ocupa todo el ancho,
+        // y en la barra de menú (fila) solo ocupa lo que mide su contenido.
+        width: Val::Auto,
+        flex_shrink: 0.0,
         height: Val::Px(30.0),
         padding: UiRect::horizontal(Val::Px(8.0)),
         align_items: AlignItems::Center,
