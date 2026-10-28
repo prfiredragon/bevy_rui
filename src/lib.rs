@@ -26,6 +26,16 @@ pub struct RuiPlugin;
 
 impl Plugin for RuiPlugin {
     fn build(&self, app: &mut App) {
+        // Registramos los plugins de controles nativos de Bevy 0.20 (Feathers) y su tema oscuro por defecto.
+        // Insertamos `UiTheme(create_dark_theme())` ANTES de `FeathersPlugins` para que `FeathersCorePlugin`
+        // no inicialice `UiTheme::default()` vacío (lo que pintaría los controles de color fucsia).
+        app.insert_resource(bevy::feathers::theme::UiTheme(
+            bevy::feathers::dark_theme::create_dark_theme(),
+        ));
+        if !app.is_plugin_added::<bevy::feathers::FeathersCorePlugin>() {
+            app.add_plugins(bevy::feathers::FeathersPlugins);
+        }
+
         // El foco es independiente de los widgets
         app.add_plugins(focus::RuiFocusPlugin);
         // Compatibilidad con `UiPickingSettings { require_markers: true }`:
