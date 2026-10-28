@@ -224,7 +224,10 @@ pub fn spawn_menu_item<'w>(
     modifier: impl FnOnce(&mut Node),
 ) -> EntityCommands<'w> {
     let mut s = Node {
-        width: Val::Percent(100.0), // Forzamos estiramiento completo dentro del vbox flotante
+        // Ancho automático: dentro de un popup (columna con AlignItems::Stretch) ocupa todo el ancho,
+        // y en la barra de menú (fila) solo ocupa lo que mide su contenido.
+        width: Val::Auto,
+        flex_shrink: 0.0,
         height: Val::Px(30.0),
         padding: UiRect::horizontal(Val::Px(8.0)),
         align_items: AlignItems::Center,
@@ -254,6 +257,24 @@ pub fn spawn_menu_item<'w>(
 
     cmds.observe(move |_: On<PointerOut>, mut query: Query<&mut BackgroundColor>| {
         if let Ok(mut bg) = query.get_mut(item_id) { bg.0 = normal_item; }
+    });
+
+    // Al elegir una opción se cierran todos los menús/submenús abiertos.
+    // Es un observer adicional: los observers `On<Activate>` del usuario se siguen ejecutando.
+    cmds.observe(move |_: On<Activate>,
+                       mut q_triggers: Query<&mut RuiSubmenuTrigger>,
+                       mut q_nodes: Query<&mut Node>,
+                       mut q_bg: Query<&mut BackgroundColor>| {
+        for mut trigger in &mut q_triggers {
+            if trigger.is_open {
+                trigger.is_open = false;
+                if let Ok(mut node) = q_nodes.get_mut(trigger.popup_entity) {
+                    node.display = Display::None;
+                }
+            }
+        }
+        // El ítem desaparece sin recibir PointerOut: restauramos su color normal.
+        if let Ok(mut bg) = q_bg.get_mut(item_id) { bg.0 = normal_item; }
     });
 
     cmds.with_children(|row| {
