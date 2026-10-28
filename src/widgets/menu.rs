@@ -256,6 +256,24 @@ pub fn spawn_menu_item<'w>(
         if let Ok(mut bg) = query.get_mut(item_id) { bg.0 = normal_item; }
     });
 
+    // Al elegir una opción se cierran todos los menús/submenús abiertos.
+    // Es un observer adicional: los observers `On<Activate>` del usuario se siguen ejecutando.
+    cmds.observe(move |_: On<Activate>,
+                       mut q_triggers: Query<&mut RuiSubmenuTrigger>,
+                       mut q_nodes: Query<&mut Node>,
+                       mut q_bg: Query<&mut BackgroundColor>| {
+        for mut trigger in &mut q_triggers {
+            if trigger.is_open {
+                trigger.is_open = false;
+                if let Ok(mut node) = q_nodes.get_mut(trigger.popup_entity) {
+                    node.display = Display::None;
+                }
+            }
+        }
+        // El ítem desaparece sin recibir PointerOut: restauramos su color normal.
+        if let Ok(mut bg) = q_bg.get_mut(item_id) { bg.0 = normal_item; }
+    });
+
     cmds.with_children(|row| {
         if let Some(icon_type) = icon {
             row.spawn(Node {
