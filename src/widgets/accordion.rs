@@ -26,20 +26,8 @@ pub fn spawn_accordion<'w>(
 
         let mut cmds = parent_cmd.spawn(s);
         cmds.with_children(|parent| {
-            let content_id = parent.spawn((
-                Node { 
-                    display: Display::None, 
-                    flex_direction: FlexDirection::Column, 
-                    width: Val::Percent(100.0), 
-                    padding: UiRect::axes(Val::Px(12.0), Val::Px(8.0)), 
-                    border: UiRect::left(Val::Px(2.0)),
-                    ..default() 
-                },
-                ImageNode::default(),
-                BackgroundColor(Color::srgb(0.12, 0.12, 0.12)),
-                BorderColor::from(Color::srgb(0.2, 0.2, 0.22)),
-            )).with_children(children).id();
-
+            // ORDEN DE HIJOS: la cabecera se crea PRIMERO y el contenido DESPUÉS,
+            // para que en el flex en columna el contenido se despliegue hacia abajo.
             let header_id = parent.spawn((
                 Node {
                     display: Display::Flex, 
@@ -60,10 +48,6 @@ pub fn spawn_accordion<'w>(
                     hovered: Color::srgb(0.2, 0.2, 0.21),
                     pressed: Color::srgb(0.12, 0.12, 0.13),
                 },
-                RuiAccordionToggle { 
-                    content_entity: content_id, 
-                    is_open: false 
-                },
             )).with_children(|header| {
                 header.spawn((
                     Text::new(title), 
@@ -76,6 +60,25 @@ pub fn spawn_accordion<'w>(
                     TextColor(Color::srgb(0.6, 0.6, 0.6))
                 ));
             }).id();
+
+            let content_id = parent.spawn((
+                Node { 
+                    display: Display::None, 
+                    flex_direction: FlexDirection::Column, 
+                    width: Val::Percent(100.0), 
+                    padding: UiRect::axes(Val::Px(12.0), Val::Px(8.0)), 
+                    border: UiRect::left(Val::Px(2.0)),
+                    ..default() 
+                },
+                ImageNode::default(),
+                BackgroundColor(Color::srgb(0.12, 0.12, 0.12)),
+                BorderColor::from(Color::srgb(0.2, 0.2, 0.22)),
+            )).with_children(children).id();
+
+            parent.commands().entity(header_id).insert(RuiAccordionToggle {
+                content_entity: content_id,
+                is_open: false,
+            });
 
             // Añadimos el observador reactivo nativo para escuchar el clic del acordeón
             parent.commands().entity(header_id).observe(
