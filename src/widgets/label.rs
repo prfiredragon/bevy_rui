@@ -1,5 +1,10 @@
+//! Themed text label widget.
+
 use bevy::prelude::*;
 
+/// Spawns a themed text label with [`Pickable::IGNORE`] and [`crate::theme::RuiThemeElement::Text`].
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::label`].
 pub fn spawn_label<'a>(
     parent: &'a mut ChildSpawnerCommands,
     text: &str,

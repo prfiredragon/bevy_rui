@@ -1,5 +1,12 @@
+//! Horizontal progress bar widget.
+
 use bevy::prelude::*;
 
+/// Spawns a horizontal progress bar displaying `value` normalized within `[min, max]`.
+///
+/// Styled via [`crate::theme::RuiThemeElement::ProgressBarTrack`] and [`crate::theme::RuiThemeElement::ProgressBarFill`].
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::progress_bar`].
 pub fn spawn_progress_bar<'a>(
     parent: &'a mut ChildSpawnerCommands,
     min: f32,

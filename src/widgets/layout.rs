@@ -1,6 +1,11 @@
+//! Flex layout containers (`vbox`, `hbox`, and `rui_root`).
+
 use bevy::prelude::*;
 use crate::widgets::RuiRootBuilderExt;
 
+/// Spawns a vertical flex container (`FlexDirection::Column`, `100% x 100%`).
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::vbox`].
 pub fn spawn_vbox<'a>(
     parent: &'a mut ChildSpawnerCommands,
     modifier: impl FnOnce(&mut Node),
@@ -21,6 +26,9 @@ pub fn spawn_vbox<'a>(
     cmds
 }
 
+/// Spawns a horizontal flex container (`FlexDirection::Row`, `100% x 100%`).
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::hbox`].
 pub fn spawn_hbox<'a>(
     parent: &'a mut ChildSpawnerCommands,
     modifier: impl FnOnce(&mut Node),

@@ -1,14 +1,17 @@
+//! Hover tooltip extension trait ([`TooltipExt`]) for [`EntityCommands`].
+
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-// Importamos los structs de eventos unificados nativos de Bevy 0.20
 use bevy::picking::events::{PointerOver, PointerOut};
 use bevy::text::FontSize;
 
+/// Marker component attached to active floating tooltip popup entities.
 #[derive(Component)]
 pub struct RuiTooltipMarker;
 
-/// Trait para permitir añadir tooltips de forma sencilla a cualquier EntityCommands
+/// Extension trait allowing any UI entity to display a floating tooltip on pointer hover (`PointerOver` / `PointerOut`).
 pub trait TooltipExt {
+    /// Attaches a hover tooltip popup with `text`, `bg_color`, and `border_color` to this UI entity.
     fn with_tooltip(
         &mut self,
         text: impl Into<String>,
@@ -28,9 +31,7 @@ impl<'w> TooltipExt for EntityCommands<'w> {
         
         self.insert(Pickable::default());
 
-        // Evento al entrar el ratón utilizando el evento nativo PointerOver
         self.observe(move |_: On<PointerOver>, mut commands: Commands, q_window: Query<&Window, With<PrimaryWindow>>| {
-            // CORRECCIÓN: .single() ahora devuelve un Result de forma segura en las versiones modernas
             let (x, y) = if let Ok(window) = q_window.single() {
                 if let Some(cursor_pos) = window.cursor_position() {
                     (cursor_pos.x, cursor_pos.y - 35.0)
@@ -70,7 +71,6 @@ impl<'w> TooltipExt for EntityCommands<'w> {
             });
         });
 
-        // Evento al salir el ratón utilizando el evento nativo PointerOut
         self.observe(|_: On<PointerOut>, mut commands: Commands, q: Query<Entity, With<RuiTooltipMarker>>| {
             for entity in &q {
                 commands.entity(entity).try_despawn();

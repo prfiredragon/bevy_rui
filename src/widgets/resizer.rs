@@ -1,12 +1,18 @@
+//! Interactive splitter/resizer bar for adjusting adjacent flex panes and collapsing/expanding panels.
+
 use bevy::{ecs::relationship::Relationship, prelude::*};
 use crate::widgets::RuiButtonStateColors;
 
+/// Resize axis direction for a [`RuiResizer`].
 #[derive(Reflect, Clone, Copy, PartialEq, Eq)]
 pub enum RuiResizerDir {
-    Horizontal, // Arrastramos Izquierda/Derecha (Es una barra vertical)
-    Vertical,   // Arrastramos Arriba/Abajo (Es una barra horizontal)
+    /// Dragged left/right (rendered as a vertical bar between horizontal panes).
+    Horizontal,
+    /// Dragged up/down (rendered as a horizontal bar between vertical panes).
+    Vertical,
 }
 
+/// Component attached to a splitter bar between two sibling flex panes.
 #[derive(Component)]
 pub struct RuiResizer {
     pub dir: RuiResizerDir,
@@ -17,6 +23,7 @@ pub struct RuiResizer {
     pub last_cursor_pos: Option<Vec2>,
 }
 
+/// Component attached to the collapse/expand toggle button inside a [`RuiResizer`].
 #[derive(Component)]
 pub struct RuiResizerCollapseBtn {
     pub resizer_entity: Entity,
@@ -24,6 +31,11 @@ pub struct RuiResizerCollapseBtn {
     pub text_entity: Entity,
 }
 
+/// Spawns a draggable splitter bar between two sibling flex panes with minimum pane size `min_size`.
+///
+/// Uses a `PointerDrag` observer to resize adjacent panes proportionally and includes a quick-collapse button.
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::resizer`].
 pub fn spawn_resizer<'a>(
     parent: &'a mut ChildSpawnerCommands,
     dir: RuiResizerDir,
@@ -136,6 +148,7 @@ pub fn spawn_resizer<'a>(
 
     cmds
 }
+/// System that updates the window cursor icon (`ColResize` / `RowResize`) when hovering over a [`RuiResizer`].
 pub fn handle_resizer_drag(
     mut q_window: Query<(Entity, &Window, Option<&mut bevy::window::CursorIcon>), With<bevy::window::PrimaryWindow>>,
     mut commands: Commands,
@@ -183,6 +196,7 @@ fn get_arrow_char(is_prev: bool, is_collapsed: bool, is_hor: bool) -> String {
     .to_string()
 }
 
+/// System that collapses or restores adjacent flex panes when a [`RuiResizerCollapseBtn`] is clicked.
 pub fn handle_resizer_collapse_clicks(
     q_clicks: Query<&RuiResizerCollapseBtn, With<bevy::ui::Pressed>>,
     mut q_resizer: Query<(&mut RuiResizer, &ChildOf)>,

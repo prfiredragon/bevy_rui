@@ -1,41 +1,53 @@
+//! Focus management and modal/window scope isolation for `bevy_rui`.
+//!
+//! Restricts directional navigation and hover focus to the currently active window
+//! tracked in [`RuiActiveScope`].
+
 use bevy::prelude::*;
 use bevy::ecs::relationship::Relationship;
 use bevy::input_focus::{InputFocus, FocusCause};
 use bevy::ui::auto_directional_navigation::AutoDirectionalNavigation;
 
-/// Tracks the currently active window or scope to restrict directional navigation
+/// Resource tracking the stack of open windows/modals to restrict directional navigation and focus.
 #[derive(Resource, Default)]
 pub struct RuiActiveScope {
+    /// Stack of window/popup entities, where the last element is the currently active scope.
     pub window_stack: Vec<Entity>,
 }
 
 impl RuiActiveScope {
+    /// Returns the currently active (topmost) window entity, if any.
     pub fn active_window(&self) -> Option<Entity> {
         self.window_stack.last().copied()
     }
 
+    /// Pushes a window entity to the top of the focus stack, deduplicating if already present.
     pub fn push_window(&mut self, window: Entity) {
         self.window_stack.retain(|&w| w != window);
         self.window_stack.push(window);
     }
 
+    /// Pops and returns the topmost window entity from the focus stack.
     pub fn pop_window(&mut self) -> Option<Entity> {
         self.window_stack.pop()
     }
 
+    /// Removes a specific window entity from anywhere in the focus stack.
     pub fn remove_window(&mut self, window: Entity) {
         self.window_stack.retain(|&w| w != window);
     }
 
+    /// Marks the given window entity as the active topmost window.
     pub fn set_active_window(&mut self, window: Entity) {
         self.push_window(window);
     }
 }
 
-/// Component marker to tell the system this widget can receive focus
+/// Component marker indicating that a UI widget can receive [`InputFocus`] and directional navigation.
 #[derive(Component, Default)]
 pub struct Focusable;
 
+/// Plugin that initializes [`RuiActiveScope`] and runs focus synchronization systems.
 pub struct RuiFocusPlugin;
 
 impl Plugin for RuiFocusPlugin {
@@ -48,6 +60,9 @@ impl Plugin for RuiFocusPlugin {
         ));
     }
 }
+
+/// Checks whether `entity` is a descendant of the currently active window in [`RuiActiveScope`].
+/// If no windows exist (`no_windows == true`), returns `true`.
 pub fn is_in_active_window(
     entity: Entity,
     active_scope: &RuiActiveScope,
@@ -68,7 +83,7 @@ pub fn is_in_active_window(
     no_windows
 }
 
-// CORRECCIÓN DEFINITIVA DE DEPRECACIÓN: Reemplazamos &Interaction por las consultas oficiales de Pressed y Hovered
+/// Synchronizes mouse [`bevy::ui::Pressed`] and [`bevy::picking::hover::Hovered`] states with [`InputFocus`].
 pub fn sync_mouse_to_focus(
     interaction_query: Query<(Entity, Option<&bevy::ui::Pressed>, Option<&bevy::picking::hover::Hovered>), (With<Focusable>, Or<(Changed<bevy::ui::Pressed>, Changed<bevy::picking::hover::Hovered>)>)>,
     mut input_focus: ResMut<InputFocus>,
@@ -79,14 +94,11 @@ pub fn sync_mouse_to_focus(
 ) {
     let no_windows = windows.is_empty();
     for (entity, pressed, hovered) in &interaction_query {
-        // En Bevy 0.20, la presencia del componente Pressed equivale al antiguo Interaction::Pressed
         if pressed.is_some() {
             if input_focus.get() != Some(entity) {
                 input_focus.set(entity, FocusCause::Navigated);
             }
-        } 
-        // La presencia de Hovered con valor interno verdadero equivale al antiguo Interaction::Hovered
-        else if let Some(h_state) = hovered {
+        } else if let Some(h_state) = hovered {
             if h_state.0 {
                 if !config.enabled || is_in_active_window(entity, &active_scope, &parents, no_windows) {
                     if input_focus.get() != Some(entity) {
@@ -97,6 +109,8 @@ pub fn sync_mouse_to_focus(
         }
     }
 }
+
+/// Removes despawned window entities from [`RuiActiveScope::window_stack`].
 pub fn cleanup_despawned_windows(
     mut active_scope: ResMut<RuiActiveScope>,
     query: Query<Entity>,
@@ -111,6 +125,8 @@ pub fn cleanup_despawned_windows(
     }
 }
 
+/// Dynamically adds or removes [`AutoDirectionalNavigation`] on [`Focusable`] entities
+/// so that keyboard/gamepad navigation stays confined to the active window scope.
 pub fn manage_focus_scopes(
     mut commands: Commands,
     mut active_scope: ResMut<RuiActiveScope>,

@@ -1,3 +1,7 @@
+//! Modal Open/Save file dialog widget with directory navigation, folder creation, and extension filtering.
+//!
+//! Emits [`RuiFileSelected`] when the user confirms a file path, or [`RuiFileCanceled`] when canceled.
+
 use std::path::PathBuf;
 use bevy::prelude::*;
 use bevy::text::FontSize;
@@ -7,26 +11,76 @@ use crate::widgets::scrollview::spawn_scrollview;
 use crate::theme::RuiThemeElement;
 use crate::widgets::RuiBuilderExt;
 
+/// Operating mode of a [`RuiFileDialog`].
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum FileDialogMode { Open, Save }
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct FileFilter { pub name: String, pub extensions: Vec<String> }
-
-#[derive(Component)]
-pub struct RuiFileDialog {
-    pub mode: FileDialogMode, pub current_dir: PathBuf, pub selected_file: String,
-    pub filters: Vec<FileFilter>, pub filter_dropdown: Option<Entity>, pub list_container: Entity,
-    pub textbox_entity: Entity, pub needs_refresh: bool, pub root_dir: Option<PathBuf>,
+pub enum FileDialogMode {
+    /// Open an existing file.
+    Open,
+    /// Save a new or existing file.
+    Save,
 }
 
-#[derive(Component, Clone)] pub struct RuiFileItem { pub path: PathBuf, pub is_dir: bool, pub dialog_entity: Entity }
-#[derive(Component)] pub struct RuiFilePathText(pub Entity);
-#[derive(Component, Clone)] pub enum DialogButtonAction { UpDir(Entity), CreateDir(Entity), Confirm(Entity), Cancel(Entity) }
+/// Extension filter entry for [`RuiFileDialog`] (e.g., `FileFilter { name: "Rust (*.rs)".into(), extensions: vec!["rs".into()] }`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct FileFilter {
+    /// Display name shown in the filter dropdown.
+    pub name: String,
+    /// Allowed file extensions (e.g., `["rs", "toml"]` or `["*"]`).
+    pub extensions: Vec<String>,
+}
 
-#[derive(Message, Debug)] pub struct RuiFileSelected { pub path: PathBuf, pub mode: FileDialogMode }
-#[derive(Message, Debug)] pub struct RuiFileCanceled;
+/// Component attached to a file dialog window entity storing its current directory, selection, and child UI entities.
+#[derive(Component)]
+pub struct RuiFileDialog {
+    pub mode: FileDialogMode,
+    pub current_dir: PathBuf,
+    pub selected_file: String,
+    pub filters: Vec<FileFilter>,
+    pub filter_dropdown: Option<Entity>,
+    pub list_container: Entity,
+    pub textbox_entity: Entity,
+    pub needs_refresh: bool,
+    pub root_dir: Option<PathBuf>,
+}
 
+/// Component attached to each file or directory row inside a [`RuiFileDialog`] list.
+#[derive(Component, Clone)]
+pub struct RuiFileItem {
+    pub path: PathBuf,
+    pub is_dir: bool,
+    pub dialog_entity: Entity,
+}
+
+/// Marker component linking the current directory path [`Text`] node to its [`RuiFileDialog`] entity.
+#[derive(Component)]
+pub struct RuiFilePathText(pub Entity);
+
+/// Action variants for file dialog buttons.
+#[derive(Component, Clone)]
+pub enum DialogButtonAction {
+    UpDir(Entity),
+    CreateDir(Entity),
+    Confirm(Entity),
+    Cancel(Entity),
+}
+
+/// Message emitted when a user confirms a file selection in a [`RuiFileDialog`].
+#[derive(Message, Debug)]
+pub struct RuiFileSelected {
+    /// Selected or entered file path.
+    pub path: PathBuf,
+    /// Dialog mode (`Open` or `Save`).
+    pub mode: FileDialogMode,
+}
+
+/// Message emitted when a user cancels a [`RuiFileDialog`].
+#[derive(Message, Debug)]
+pub struct RuiFileCanceled;
+
+/// Spawns a floating Open/Save file dialog window starting at `start_dir`, optionally restricted to `root_dir`,
+/// with extension `filters`.
+///
+/// Listen for [`RuiFileSelected`] and [`RuiFileCanceled`] via `MessageReader` to handle dialog results.
 pub fn spawn_file_dialog<'w>(
     parent: &'w mut ChildSpawnerCommands<'w>,
     title: &str,
@@ -114,7 +168,6 @@ pub fn spawn_file_dialog<'w>(
                         if let Some(drop_ent) = dialog.filter_dropdown {
                             if let Ok(dropdown) = q_drop.get(drop_ent) {
                                 if let Ok(dropdown_text) = q_texts.get(dropdown.text_entity) {
-                                    // CORRECCIÓN REACTIVA CONFIRMAR: Extraemos la string pura mediante .to_string()
                                     let selected_filter_name = dropdown_text.to_string();
                                     if let Some(filter) = dialog.filters.iter().find(|f| f.name == selected_filter_name) {
                                         if let Some(first_ext) = filter.extensions.first() {
@@ -181,6 +234,7 @@ fn spawn_create_dir_modal(commands: &mut Commands, dialog_entity: Entity) -> Ent
     });
     modal_id
 }
+/// System that populates and refreshes the directory file list inside [`RuiFileDialog`] windows.
 pub fn update_file_list_ui(
     mut commands: Commands,
     mut q_dialogs: Query<(Entity, &mut RuiFileDialog)>,
@@ -216,8 +270,6 @@ pub fn update_file_list_ui(
         if let Some(dropdown_entity) = dialog.filter_dropdown {
             if let Ok(dropdown) = q_dropdowns.get(dropdown_entity) {
                 if let Ok(dropdown_text) = q_texts.get(dropdown.text_entity) {
-                    // CORRECCIÓN MAESTRA DE FILTRADO: Convertimos el struct Text a una String literal limpia
-                    // Esto sanea la coincidencia estática contra el array de filtros de extensiones de archivos.
                     let selected_filter_name = dropdown_text.to_string();
                     if let Some(filter) = dialog.filters.iter().find(|f| f.name == selected_filter_name) { 
                         active_extensions = filter.extensions.clone(); 
@@ -292,6 +344,9 @@ pub fn update_file_list_ui(
     }
 }
 
+/// Placeholder system kept for backwards compatibility.
 pub fn handle_dropdown_change() {}
+/// Placeholder system kept for backwards compatibility.
 pub fn handle_file_clicks() {}
+/// Placeholder system kept for backwards compatibility.
 pub fn handle_dialog_buttons() {}

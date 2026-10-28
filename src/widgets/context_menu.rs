@@ -1,3 +1,5 @@
+//! Right-click floating context menu widget.
+
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 use bevy::ui_widgets::Activate;
@@ -5,18 +7,27 @@ use bevy::text::FontSize;
 use crate::widgets::{RuiButtonStateColors, RuiBuilderExt, menu::RuiIcon};
 use crate::theme::RuiThemeElement;
 
+/// Component attached to a target entity that has an associated right-click context menu popup.
 #[derive(Component)]
 pub struct RuiContextMenu {
+    /// Entity ID of the floating popup container.
     pub popup_entity: Entity,
+    /// Whether the context menu popup is currently open.
     pub is_open: bool,
 }
 
+/// Component attached to each clickable item inside a context menu popup.
 #[derive(Component)]
 pub struct RuiContextMenuItem {
+    /// Entity ID of the enclosing context menu popup container.
     pub popup_entity: Entity,
 }
 
-// CORRECCIÓN: Tiempo de vida 'w unificado para evitar fallos de varianza
+/// Attaches a right-click context menu popup to the current parent entity.
+///
+/// Populate menu items inside `build_items` using [`RuiBuilderExt::context_menu_item`].
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::context_menu`].
 pub fn spawn_context_menu<'w>(
     parent: &'w mut ChildSpawnerCommands<'w>,
     build_items: impl FnOnce(&mut ChildSpawnerCommands),
@@ -39,7 +50,6 @@ pub fn spawn_context_menu<'w>(
         GlobalZIndex(1000),
         RuiThemeElement::ContextMenuBg,
     )).with_children(|popup| {
-        // SOLUCIÓN AL LIFETIME: Forzamos reborrow local para satisfacer la varianza del framework
         let mut popup_spawner = popup.reborrow();
         popup_spawner.scrollview(|_|{}, |scroll| {
             let mut scroll_spawner = scroll.reborrow();
@@ -47,7 +57,6 @@ pub fn spawn_context_menu<'w>(
         });
     }).id();
 
-    // Adjuntar al nodo padre con el observador reactivo de clic derecho de Bevy 0.20
     parent.commands().entity(target_id)
         .insert((
             RuiContextMenu { popup_entity: popup_id, is_open: false },
@@ -55,7 +64,12 @@ pub fn spawn_context_menu<'w>(
         ));
 }
 
-// CORRECCIÓN: Firma unificada con el tiempo de vida global 'w
+/// Spawns a clickable option item inside a context menu with `label` and optional [`RuiIcon`].
+///
+/// Automatically closes the context menu when activated. Attach `.observe(|_: On<Activate>| ...)`
+/// on the returned [`EntityCommands`] to execute custom logic on click.
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::context_menu_item`].
 pub fn spawn_context_menu_item<'w>(
     parent: &'w mut ChildSpawnerCommands<'w>,
     label: &str,
@@ -74,7 +88,7 @@ pub fn spawn_context_menu_item<'w>(
     };
 
     let mut cmds = parent.spawn((
-        bevy::ui_widgets::Button, // Widget headless nativo de Bevy 0.20
+        bevy::ui_widgets::Button,
         s, ImageNode::default(), BackgroundColor(Color::NONE),
         colors, crate::focus::Focusable,
         RuiContextMenuItem { popup_entity: popup_id },
@@ -103,7 +117,6 @@ pub fn spawn_context_menu_item<'w>(
         inner.spawn((Text::new(label), TextFont::default(), TextColor(Color::WHITE), RuiThemeElement::Text));
     });
 
-    // CORRECCIÓN REACTIVA: Al hacer clic en una opción del menú, este se cierra de forma autocontenida
     cmds.observe(
         move |trigger: On<Activate>,
               q_items: Query<&RuiContextMenuItem>,
@@ -126,26 +139,23 @@ pub fn spawn_context_menu_item<'w>(
     cmds
 }
 
-
-
 use bevy::window::PrimaryWindow;
 use bevy::picking::hover::Hovered;
 
+/// System that opens a [`RuiContextMenu`] at the cursor position on right-click and closes any other open context menus.
 pub fn handle_context_menu_clicks(
     mouse: Res<ButtonInput<MouseButton>>,
     q_window: Query<&Window, With<PrimaryWindow>>,
-    // CORRECCIÓN: Pedimos Option<&Hovered> para verificar si el componente existe en la entidad
     mut q_menus: Query<(Option<&Hovered>, &mut RuiContextMenu)>,
     mut q_popups: Query<&mut Node>,
     mut active_scope: ResMut<crate::focus::RuiActiveScope>,
 ) {
     let Ok(window) = q_window.single() else { return; };
-    if !mouse.just_pressed(MouseButton::Right) { return; }
+    if !mouse.just_pressed(MouseButton::Right) { return; };
     
     let Some(cursor_pos) = window.cursor_position() else { return; };
     let mut opened_any = false;
 
-    // 1. Abrir el menú si el cursor está sobre el elemento asignado
     for (hovered, mut ctx) in &mut q_menus {
         if hovered.is_some() {
             ctx.is_open = true;
@@ -166,7 +176,6 @@ pub fn handle_context_menu_clicks(
         }
     }
 
-    // 2. Cerrar los otros menús si se abrió uno nuevo
     if opened_any {
         for (hovered, mut ctx) in &mut q_menus {
             if hovered.is_none() && ctx.is_open {
@@ -179,6 +188,8 @@ pub fn handle_context_menu_clicks(
         }
     }
 }
+
+/// System that closes open [`RuiContextMenu`] popups when clicking outside of them.
 pub fn close_context_menus_on_outside_click(
     mouse: Res<ButtonInput<MouseButton>>,
     mut q_menus: Query<(Option<&Hovered>, &mut RuiContextMenu)>,

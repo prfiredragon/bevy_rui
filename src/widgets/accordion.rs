@@ -1,15 +1,26 @@
+//! Collapsible accordion widget for `bevy_rui`.
+//!
+//! Spawns a clickable header button followed by a collapsible content container.
+//! Toggles open/closed state automatically via an `On<Activate>` observer.
+
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
 use bevy::text::FontSize;
 use crate::widgets::RuiButtonStateColors;
 
+/// Component stored on an accordion header entity tracking its collapsible content container.
 #[derive(Component)]
 pub struct RuiAccordionToggle {
+    /// The child container entity whose `Node::display` is toggled between `Flex` and `None`.
     pub content_entity: Entity,
+    /// Whether the accordion section is currently expanded.
     pub is_open: bool,
 }
 
-// CORRECCIÓN DEFINITIVA: Ligamos explícitamente el tiempo de vida de la referencia mutable con el del contexto global 'w
+/// Spawns a collapsible accordion section with `title`, a `modifier` for the outer node,
+/// and `children` populated inside the collapsible body.
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::accordion`].
 pub fn spawn_accordion<'w>(
     parent_cmd: &'w mut ChildSpawnerCommands<'w>,
     title: &str,
@@ -26,8 +37,7 @@ pub fn spawn_accordion<'w>(
 
         let mut cmds = parent_cmd.spawn(s);
         cmds.with_children(|parent| {
-            // ORDEN DE HIJOS: la cabecera se crea PRIMERO y el contenido DESPUÉS,
-            // para que en el flex en columna el contenido se despliegue hacia abajo.
+            // Header is spawned first, followed by the content container so it expands downward in a column layout.
             let header_id = parent.spawn((
                 Node {
                     display: Display::Flex, 
@@ -38,7 +48,7 @@ pub fn spawn_accordion<'w>(
                     border: UiRect::bottom(Val::Px(1.0)),
                     ..default()
                 },
-                bevy::ui_widgets::Button, // Widget headless nativo
+                bevy::ui_widgets::Button,
                 crate::focus::Focusable,
                 ImageNode::default(),
                 BackgroundColor(Color::srgb(0.16, 0.16, 0.17)),
@@ -80,7 +90,7 @@ pub fn spawn_accordion<'w>(
                 is_open: false,
             });
 
-            // Añadimos el observador reactivo nativo para escuchar el clic del acordeón
+            // Reactive observer toggling content visibility and arrow indicator on click/activation.
             parent.commands().entity(header_id).observe(
                 |trigger: On<Activate>, 
                 mut q_toggle: Query<&mut RuiAccordionToggle>, 
@@ -93,12 +103,10 @@ pub fn spawn_accordion<'w>(
                     if let Ok(mut toggle) = q_toggle.get_mut(target_entity) {
                         toggle.is_open = !toggle.is_open;
                         
-                        // Alternar visibilidad del contenedor de contenido
                         if let Ok(mut content_node) = q_content.get_mut(toggle.content_entity) {
                             content_node.display = if toggle.is_open { Display::Flex } else { Display::None };
                         }
                         
-                        // Rotar el icono de la flecha ("▶" / "▼") mutando el segundo hijo
                         if let Ok(children) = q_children.get(target_entity) {
                             if children.len() > 1 {
                                 if let Ok(mut text) = q_text.get_mut(children[1]) {

@@ -1,14 +1,25 @@
+//! 3D/2D camera viewport widget that synchronizes a camera's physical render rect with a UI node's layout bounds.
+
 use bevy::prelude::*;
 use bevy::camera::Viewport as BevyViewport;
 
+/// Marker component required on any [`Camera`] entity controlled by a [`RuiViewport`] UI node.
 #[derive(Component)]
 pub struct RuiViewportCamera;
 
+/// Component attached to a UI node that binds its physical layout rectangle to `camera_entity`'s [`BevyViewport`].
 #[derive(Component)]
 pub struct RuiViewport {
+    /// Target camera entity (must also have [`RuiViewportCamera`]).
     pub camera_entity: Entity,
 }
 
+/// Spawns a UI viewport node (`100% x 100%`, `Pickable::IGNORE`) bound to `camera_entity`.
+///
+/// Ensure `camera_entity` has the [`RuiViewportCamera`] marker component so [`update_rui_viewports`]
+/// automatically updates its physical viewport rectangle and active state.
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::viewport`].
 pub fn spawn_viewport<'a>(
     parent: &'a mut ChildSpawnerCommands,
     camera_entity: Entity,
@@ -25,6 +36,8 @@ pub fn spawn_viewport<'a>(
     parent.spawn((s, Pickable::IGNORE, RuiViewport { camera_entity }))
 }
 
+/// PostUpdate system that synchronizes the physical position and size of visible [`RuiViewport`] UI nodes
+/// onto their corresponding [`RuiViewportCamera`] cameras, deactivating cameras whose viewport is hidden.
 pub fn update_rui_viewports(
     q_viewports: Query<(&bevy::ui::UiGlobalTransform, &ComputedNode, &RuiViewport, &InheritedVisibility)>,
     mut q_cameras: Query<(Entity, &mut Camera), With<RuiViewportCamera>>,

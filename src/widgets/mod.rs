@@ -1,3 +1,8 @@
+//! UI widgets and ergonomic builder extension traits for `bevy_rui`.
+//!
+//! Includes [`RuiBuilderExt`] (implemented on [`ChildSpawnerCommands`]) and [`RuiRootBuilderExt`]
+//! (implemented on [`Commands`]) for building widget hierarchies.
+
 use bevy::prelude::*;
 
 pub mod accordion;
@@ -48,11 +53,11 @@ pub use code_editor::*;
 pub use progress_bar::*;
 pub use context_menu::*;
 
-
-
+/// Optional resource holding a fallback font handle applied to newly spawned [`TextFont`] components.
 #[derive(Resource)]
 pub struct RuiDefaultFont(pub Handle<Font>);
 
+/// System that applies [`RuiDefaultFont`] to newly added [`TextFont`] components that still use the default handle.
 pub fn apply_rui_default_font(
     mut query: Query<&mut TextFont, Added<TextFont>>,
     default_font: Option<Res<RuiDefaultFont>>,
@@ -66,38 +71,64 @@ pub fn apply_rui_default_font(
     }
 }
 
-// CORRECCIÓN DEFINITIVA DE LIFETIMES: Cambiamos EntityCommands<'_> por EntityCommands<'w> en todo el Trait
+/// Extension trait on [`ChildSpawnerCommands`] providing ergonomic methods to spawn `bevy_rui` widgets.
 pub trait RuiBuilderExt<'w> {
+    /// Spawns a vertical flex container (`FlexDirection::Column`). See [`layout::spawn_vbox`].
     fn vbox(&'w mut self, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'w>;
+    /// Spawns a horizontal flex container (`FlexDirection::Row`). See [`layout::spawn_hbox`].
     fn hbox(&'w mut self, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'w>;
+    /// Spawns an interactive themed button. Attach `observe(|_: On<Activate>| ...)` to handle clicks. See [`button::spawn_button`].
     fn button(&'w mut self, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'w>;
+    /// Spawns a themed text label (`Pickable::IGNORE`). See [`label::spawn_label`].
     fn label(&'w mut self, text: &str, modifier: impl FnOnce(&mut TextFont, &mut TextColor)) -> EntityCommands<'w>;
+    /// Spawns a single-line editable text box with placeholder text. See [`textbox::spawn_textbox`].
     fn textbox(&'w mut self, placeholder: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'w>;
+    /// Spawns a color picker widget backed by `FeathersColorInput` and [`color_picker::RuiColorPicker`]. See [`color_picker::spawn_color_picker`].
     fn color_picker(&'w mut self, initial_color: Color, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'w>;
+    /// Spawns a multi-line editable text box with placeholder text. See [`textbox::spawn_multiline_textbox`].
     fn multiline_textbox(&'w mut self, placeholder: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'w>;
+    /// Spawns a scrollable container with automatic vertical and horizontal scrollbars. See [`scrollview::spawn_scrollview`].
     fn scrollview(&'w mut self, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'w>;
+    /// Spawns a collapsible accordion section with a clickable header and hidden-by-default content area. See [`accordion::spawn_accordion`].
     fn accordion(&'w mut self, title: &str, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'w>;
+    /// Spawns a draggable floating window with a title bar and optional close button. See [`windows::spawn_window`].
     fn window(&'w mut self, title: &str, closable: bool, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands, Entity)) -> EntityCommands<'w>;
+    /// Spawns a dropdown select menu with a list of string options. See [`dropdown::spawn_dropdown`].
     fn dropdown(&'w mut self, default_value: &str, options: &[&str], modifier: impl FnOnce(&mut Node)) -> EntityCommands<'w>;
+    /// Spawns a toggleable checkbox with a text label. See [`checkbox::spawn_checkbox`].
     fn checkbox(&'w mut self, label_text: &str, checked: bool, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'w>;
+    /// Spawns a horizontal top menu bar container. See [`menu::spawn_menu_bar`].
     fn menu_bar(&'w mut self, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'w>;
+    /// Spawns a clickable menu item with an optional [`menu::RuiIcon`]. See [`menu::spawn_menu_item`].
     fn menu_item(&'w mut self, label: &str, icon: Option<menu::RuiIcon>, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'w>;
+    /// Spawns a nested submenu trigger and its floating popup container. See [`menu::spawn_submenu`].
     fn submenu(&'w mut self, label: &str, icon: Option<menu::RuiIcon>, depth: u32, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'w>;
+    /// Spawns a tabbed container using [`tabs::RuiTabsBuilder`] to register individual tabs. See [`tabs::spawn_tabs`].
     fn tabs(&'w mut self, active_tab: usize, modifier: impl FnOnce(&mut Node), build_tabs: impl FnOnce(&mut tabs::RuiTabsBuilder)) -> EntityCommands<'w>;
+    /// Spawns a draggable splitter bar between two sibling flex panes. See [`resizer::spawn_resizer`].
     fn resizer(&'w mut self, dir: resizer::RuiResizerDir, min_size: f32, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'w>;
+    /// Spawns a UI viewport node that synchronizes a camera's physical render rect with the node's layout bounds. See [`viewport::spawn_viewport`].
     fn viewport(&'w mut self, camera_entity: Entity, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'w>;
+    /// Spawns a horizontally split dock area (left and right panes separated by a [`resizer::RuiResizer`]). See [`docks::spawn_dock_split_horizontal`].
     fn dock_split_horizontal(&'w mut self, left_width: Val, min_size: f32, modifier: impl FnOnce(&mut Node), left_children: impl FnOnce(&mut ChildSpawnerCommands), right_children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'w>;
+    /// Spawns a vertically split dock area (top and bottom panes separated by a [`resizer::RuiResizer`]). See [`docks::spawn_dock_split_vertical`].
     fn dock_split_vertical(&'w mut self, top_height: Val, min_size: f32, modifier: impl FnOnce(&mut Node), top_children: impl FnOnce(&mut ChildSpawnerCommands), bottom_children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'w>;
+    /// Spawns a tabbed dock panel (wrapper around [`tabs::spawn_tabs`] that fills 100% of its dock pane). See [`docks::spawn_dock_panel`].
     fn dock_panel(&'w mut self, active_tab: usize, modifier: impl FnOnce(&mut Node), build_tabs: impl FnOnce(&mut tabs::RuiTabsBuilder)) -> EntityCommands<'w>;
+    /// Spawns an interactive horizontal numeric slider in `[min, max]`. See [`slider::spawn_slider`].
     fn slider(&'w mut self, min: f32, max: f32, value: f32, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'w>;
+    /// Spawns a horizontal progress bar indicator in `[min, max]`. See [`progress_bar::spawn_progress_bar`].
     fn progress_bar(&'w mut self, min: f32, max: f32, value: f32, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'w>;
+    /// Spawns a syntax-highlighted code editor widget powered by `ropey` and `syntect`. See [`code_editor::spawn_code_editor`].
     fn code_editor(&'w mut self, placeholder: &str, language: &str, modifier: impl FnOnce(&mut Node, &mut TextFont, &mut TextColor)) -> EntityCommands<'w>; 
+    /// Spawns a full-screen HUD overlay targeted at a specific camera entity. See [`canvas_layer::spawn_canvas_layer`].
     fn canvas_layer(&'w mut self, camera_entity: Entity, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'w>;
+    /// Attaches a right-click context menu popup to the current parent entity. See [`context_menu::spawn_context_menu`].
     fn context_menu(&'w mut self, build_items: impl FnOnce(&mut ChildSpawnerCommands));
+    /// Spawns a clickable item inside a context menu popup. See [`context_menu::spawn_context_menu_item`].
     fn context_menu_item(&'w mut self, label: &str, icon: Option<menu::RuiIcon>, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'w>;
 }
 
-// CORRECCIÓN DEFINITIVA DE LIFETIMES: Sincronizamos las firmas de la implementación con el tiempo de vida 'w unificado
 impl<'w> RuiBuilderExt<'w> for ChildSpawnerCommands<'w> {
     fn vbox(&'w mut self, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'w> { layout::spawn_vbox(self, modifier, children) }
     fn hbox(&'w mut self, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'w> { layout::spawn_hbox(self, modifier, children) }
@@ -128,11 +159,13 @@ impl<'w> RuiBuilderExt<'w> for ChildSpawnerCommands<'w> {
     fn context_menu_item(&'w mut self, label: &str, icon: Option<menu::RuiIcon>, modifier: impl FnOnce(&mut Node)) -> EntityCommands<'w> { context_menu::spawn_context_menu_item(self, label, icon, modifier) }
 }
 
+/// Extension trait on [`Commands`] for spawning the top-level full-screen UI root container.
 pub trait RuiRootBuilderExt {
+    /// Spawns an absolute full-screen (`100% x 100%`) flex container as the root of a `bevy_rui` layout.
     fn rui_root(&mut self, modifier: impl FnOnce(&mut Node), children: impl FnOnce(&mut ChildSpawnerCommands)) -> EntityCommands<'_>;
 }
 
-
+/// Plugin that initializes all `bevy_rui` widget resources, messages, and update systems.
 pub struct RuiWidgets;
 
 impl Plugin for RuiWidgets {
@@ -143,7 +176,6 @@ impl Plugin for RuiWidgets {
         app.init_resource::<crate::widgets::code_editor::RuiSyntaxAssets>(); 
         app.add_systems(Startup, color_picker::setup_color_picker_images);
         
-        // SANEAMIENTO: Registramos handle_slider_navigation y los sistemas limpios de resizers
         app.add_systems(Update, (
             button::handle_button_colors,
             scrollview::handle_scrollview_clicks,

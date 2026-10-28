@@ -1,3 +1,5 @@
+//! Tabbed container widget supporting switchable and optionally closable tabs.
+
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
 use bevy::text::FontSize;
@@ -5,34 +7,42 @@ use crate::widgets::RuiButtonStateColors;
 
 use bevy::ecs::relationship::Relationship; 
 
+/// Component attached to the root of a tabbed container tracking the currently active tab index.
 #[derive(Component)]
 pub struct RuiTabContainer {
+    /// Zero-based index of the currently active/visible tab.
     pub active_tab: usize,
 }
 
+/// Component attached to each tab button in the tab bar header.
 #[derive(Component)]
 pub struct RuiTabButton {
     pub container_entity: Entity,
     pub tab_index: usize,
 }
 
+/// Component attached to each tab's content pane.
 #[derive(Component)]
 pub struct RuiTabContent {
     pub container_entity: Entity,
     pub tab_index: usize,
 }
 
+/// Component attached to the close (`"x"`) button on a closable tab header.
 #[derive(Component)]
 pub struct RuiTabCloseButton {
     pub container_entity: Entity,
     pub tab_index: usize,
 }
 
+/// Builder passed to the closure of [`spawn_tabs`] and [`crate::widgets::RuiBuilderExt::tabs`] to register tabs.
 pub struct RuiTabsBuilder<'a> {
     tabs: Vec<(String, bool, Box<dyn FnOnce(&mut Node, &mut ImageNode) + 'a>, Box<dyn FnOnce(&mut ChildSpawnerCommands) + 'a>)>,
 }
 
 impl<'a> RuiTabsBuilder<'a> {
+    /// Adds a tab with `label`, whether it has a close button (`closable`), a style `modifier` for the content pane,
+    /// and a `content_builder` closure to populate the tab's UI hierarchy.
     pub fn tab(
         &mut self, 
         label: &str, 
@@ -44,6 +54,9 @@ impl<'a> RuiTabsBuilder<'a> {
     }
 }
 
+/// Spawns a tabbed container with `active_tab` selected initially and tabs defined via [`RuiTabsBuilder`].
+///
+/// Also available via [`crate::widgets::RuiBuilderExt::tabs`] and [`crate::widgets::RuiBuilderExt::dock_panel`].
 pub fn spawn_tabs<'w>(
     parent: &'w mut ChildSpawnerCommands<'w>,
     active_tab: usize,
@@ -128,7 +141,7 @@ pub fn spawn_tabs<'w>(
                                   q_buttons: Query<(Entity, &RuiTabButton)>,
                                   mut q_contents: Query<(Entity, &mut Node, &RuiTabContent), Without<RuiTabButton>>,
                                   mut q_btn_styles: Query<(&mut crate::theme::RuiThemeElement, &mut BorderColor, &mut BackgroundColor, &RuiTabButton), Without<RuiTabContent>>,
-                                  mut q_texts: Query<(&mut TextColor, &ChildOf)>| // CORRECCIÓN: &ChildOf nativo
+                                  mut q_texts: Query<(&mut TextColor, &ChildOf)>|
                             {
                                 if let Ok(close_btn) = q_close.get(trigger.entity) {
                                     for (entity, btn) in &q_buttons {
@@ -166,7 +179,6 @@ pub fn spawn_tabs<'w>(
                                                     }
                                                 }
                                                 for (mut text_color, parent) in &mut q_texts {
-                                                    // CORRECCIÓN: .find_map retorna un Option, evaluamos con `if let Some`
                                                     if let Some(btn) = q_buttons.iter().find_map(|(e, b)| if e == parent.get() { Some(b) } else { None }) {
                                                         if btn.container_entity == close_btn.container_entity {
                                                             text_color.0 = if btn.tab_index == idx { Color::WHITE } else { Color::srgb(0.6, 0.6, 0.6) };
@@ -188,7 +200,7 @@ pub fn spawn_tabs<'w>(
                           q_buttons: Query<&RuiTabButton>,
                           mut q_contents: Query<(&mut Node, &RuiTabContent), Without<RuiTabButton>>,
                           mut q_btn_styles: Query<(&mut crate::theme::RuiThemeElement, &mut BorderColor, &mut BackgroundColor, &RuiTabButton), Without<RuiTabContent>>,
-                          mut q_texts: Query<(&mut TextColor, &ChildOf)>| // CORRECCIÓN: &ChildOf nativo
+                          mut q_texts: Query<(&mut TextColor, &ChildOf)>|
                     {
                         if let Ok(button) = q_buttons.get(trigger.entity) {
                             if let Ok(mut container) = q_containers.get_mut(button.container_entity) {
