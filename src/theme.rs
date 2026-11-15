@@ -484,7 +484,7 @@ pub fn apply_rui_theme(
     theme: Res<RuiTheme>,
     mut elements: Query<(
         Entity,
-        &mut BackgroundColor,
+        Option<&mut BackgroundColor>,
         Option<&mut Node>,
         Option<&mut BorderColor>,
         Option<&mut ImageNode>,
@@ -496,12 +496,14 @@ pub fn apply_rui_theme(
 ) {
     let theme_changed = theme.is_changed();
 
-    for (_entity, mut bg_color, opt_node, opt_border_color, opt_image_node, hovered, pressed, element) in &mut elements {
+    for (_entity, mut opt_bg_color, mut opt_node, opt_border_color, opt_image_node, hovered, pressed, element) in &mut elements {
         if theme_changed 
             || element.is_changed() 
             || element.is_added() 
             || *element == RuiThemeElement::Button 
             || *element == RuiThemeElement::ListItem 
+            || *element == RuiThemeElement::Tab
+            || *element == RuiThemeElement::TabActive
         {
             let (border_rect, b_color, border_radius) = match *element {
                 RuiThemeElement::Button => (theme.border_button, theme.border_color_button, theme.border_radius_button),
@@ -512,13 +514,22 @@ pub fn apply_rui_theme(
                 _ => (UiRect::all(Val::Px(0.0)), Color::NONE, BorderRadius::all(Val::Px(0.0))),
             };
 
-            if let Some(mut node) = opt_node {
-                node.border = border_rect;
-                node.border_radius = border_radius;
-            }
+            if matches!(
+                *element,
+                RuiThemeElement::Button
+                    | RuiThemeElement::ListItem
+                    | RuiThemeElement::Window
+                    | RuiThemeElement::Panel
+                    | RuiThemeElement::TextboxBg
+            ) {
+                if let Some(ref mut node) = opt_node {
+                    node.border = border_rect;
+                    node.border_radius = border_radius;
+                }
 
-            if let Some(mut border_color) = opt_border_color {
-                *border_color = BorderColor::from(b_color);
+                if let Some(mut border_color) = opt_border_color {
+                    *border_color = BorderColor::from(b_color);
+                }
             }
 
             match *element {
@@ -530,24 +541,34 @@ pub fn apply_rui_theme(
                     } else {
                         theme.color_button_normal
                     };
-                    bg_color.0 = color;
+                    let tex = if pressed.is_some() {
+                        theme.image_button_pressed.clone()
+                    } else if hovered.is_some() {
+                        theme.image_button_hover.clone()
+                    } else {
+                        theme.image_button_normal.clone()
+                    };
 
                     if let Some(mut image_node) = opt_image_node {
-                        let tex = if pressed.is_some() {
-                            theme.image_button_pressed.clone()
-                        } else if hovered.is_some() {
-                            theme.image_button_hover.clone()
-                        } else {
-                            theme.image_button_normal.clone()
-                        };
-
                         if let Some(texture_handle) = tex {
+                            if let Some(ref mut bg) = opt_bg_color {
+                                bg.0 = Color::NONE;
+                            }
+                            image_node.color = Color::WHITE;
                             image_node.image = texture_handle;
-                            image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
-                                border: BorderRect::all(theme.button_margin),
-                                ..default()
-                            });
+                            image_node.image_mode = if theme.button_margin > 0.0 {
+                                NodeImageMode::Sliced(TextureSlicer {
+                                    border: BorderRect::all(theme.button_margin),
+                                    ..default()
+                                })
+                            } else {
+                                NodeImageMode::Stretch
+                            };
+                        } else if let Some(ref mut bg) = opt_bg_color {
+                            bg.0 = color;
                         }
+                    } else if let Some(ref mut bg) = opt_bg_color {
+                        bg.0 = color;
                     }
                 }
                 RuiThemeElement::ListItem => {
@@ -558,97 +579,195 @@ pub fn apply_rui_theme(
                     } else {
                         theme.color_list_item_normal
                     };
-bg_color.0 = color;
-if let Some(mut image_node) = opt_image_node {
-let tex = if pressed.is_some() {
-theme.image_list_item_pressed.clone()
-} else if hovered.is_some() {
-theme.image_list_item_hover.clone()
-} else {
-theme.image_list_item_normal.clone()
-};
-if let Some(texture_handle) = tex {
-image_node.image = texture_handle;
-image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
-border: BorderRect::all(theme.list_item_margin),
-..default()
-});
-}
-}
-}
-RuiThemeElement::Window => {
-    // Fondo de ventana: usa la textura de panel si existe; si no, el color sólido.
-    if let Some(mut image_node) = opt_image_node {
-        if let Some(ref texture_handle) = theme.image_panel {
-            bg_color.0 = Color::NONE;
-            image_node.image = texture_handle.clone();
-            image_node.color = Color::WHITE;
-            image_node.image_mode = if theme.panel_margin > 0.0 {
-                NodeImageMode::Sliced(TextureSlicer {
-                    border: BorderRect::all(theme.panel_margin),
-                    ..default()
-                })
-            } else {
-                NodeImageMode::Stretch
-            };
-        } else {
-            bg_color.0 = theme.color_panel;
-            // Sin textura: ocultamos la imagen blanca por defecto para que se vea el color de fondo.
-            image_node.color = Color::NONE;
+                    let tex = if pressed.is_some() {
+                        theme.image_list_item_pressed.clone()
+                    } else if hovered.is_some() {
+                        theme.image_list_item_hover.clone()
+                    } else {
+                        theme.image_list_item_normal.clone()
+                    };
+                    if let Some(mut image_node) = opt_image_node {
+                        if let Some(texture_handle) = tex {
+                            if let Some(ref mut bg) = opt_bg_color {
+                                bg.0 = Color::NONE;
+                            }
+                            image_node.color = Color::WHITE;
+                            image_node.image = texture_handle;
+                            image_node.image_mode = if theme.list_item_margin > 0.0 {
+                                NodeImageMode::Sliced(TextureSlicer {
+                                    border: BorderRect::all(theme.list_item_margin),
+                                    ..default()
+                                })
+                            } else {
+                                NodeImageMode::Stretch
+                            };
+                        } else if let Some(ref mut bg) = opt_bg_color {
+                            bg.0 = color;
+                        }
+                    } else if let Some(ref mut bg) = opt_bg_color {
+                        bg.0 = color;
+                    }
+                }
+                RuiThemeElement::Window | RuiThemeElement::Panel | RuiThemeElement::DropdownBg | RuiThemeElement::ContextMenuBg => {
+                    let (tex_opt, margin) = if *element == RuiThemeElement::ContextMenuBg && theme.image_context_menu_bg.is_some() {
+                        (&theme.image_context_menu_bg, theme.context_menu_bg_margin)
+                    } else {
+                        (&theme.image_panel, theme.panel_margin)
+                    };
+                    if let Some(mut image_node) = opt_image_node {
+                        if let Some(texture_handle) = tex_opt {
+                            if let Some(ref mut bg) = opt_bg_color {
+                                bg.0 = Color::NONE;
+                            }
+                            image_node.image = texture_handle.clone();
+                            image_node.color = Color::WHITE;
+                            image_node.image_mode = if margin > 0.0 {
+                                NodeImageMode::Sliced(TextureSlicer {
+                                    border: BorderRect::all(margin),
+                                    ..default()
+                                })
+                            } else {
+                                NodeImageMode::Stretch
+                            };
+                        } else {
+                            if let Some(ref mut bg) = opt_bg_color {
+                                bg.0 = theme.color_panel;
+                            }
+                            image_node.color = Color::NONE;
+                        }
+                    } else if let Some(ref mut bg) = opt_bg_color {
+                        bg.0 = theme.color_panel;
+                    }
+                }
+                RuiThemeElement::WindowHeader => {
+                    if let Some(ref mut node) = opt_node {
+                        if theme.window_header_layout_margin != UiRect::all(Val::Px(0.0)) {
+                            node.margin = theme.window_header_layout_margin;
+                        }
+                    }
+                    if let Some(mut image_node) = opt_image_node {
+                        if let Some(ref texture_handle) = theme.image_window_header {
+                            if let Some(ref mut bg) = opt_bg_color {
+                                bg.0 = Color::NONE;
+                            }
+                            image_node.color = Color::WHITE;
+                            image_node.image = texture_handle.clone();
+                            image_node.image_mode = if theme.window_header_margin > 0.0 {
+                                NodeImageMode::Sliced(TextureSlicer {
+                                    border: BorderRect::all(theme.window_header_margin),
+                                    ..default()
+                                })
+                            } else {
+                                NodeImageMode::Stretch
+                            };
+                        } else if let Some(ref mut bg) = opt_bg_color {
+                            bg.0 = theme.color_window_header;
+                        }
+                    } else if let Some(ref mut bg) = opt_bg_color {
+                        bg.0 = theme.color_window_header;
+                    }
+                }
+                RuiThemeElement::TextboxBg => {
+                    if let Some(mut image_node) = opt_image_node {
+                        if let Some(ref texture_handle) = theme.image_textbox_bg {
+                            if let Some(ref mut bg) = opt_bg_color {
+                                bg.0 = Color::NONE;
+                            }
+                            image_node.color = Color::WHITE;
+                            image_node.image = texture_handle.clone();
+                            image_node.image_mode = if theme.textbox_margin > 0.0 {
+                                NodeImageMode::Sliced(TextureSlicer {
+                                    border: BorderRect::all(theme.textbox_margin),
+                                    ..default()
+                                })
+                            } else {
+                                NodeImageMode::Stretch
+                            };
+                        } else if let Some(ref mut bg) = opt_bg_color {
+                            bg.0 = theme.color_textbox_bg;
+                        }
+                    } else if let Some(ref mut bg) = opt_bg_color {
+                        bg.0 = theme.color_textbox_bg;
+                    }
+                }
+                RuiThemeElement::ProgressBarTrack => {
+                    if let Some(mut image_node) = opt_image_node {
+                        if let Some(ref texture_handle) = theme.image_progress_bar_track {
+                            if let Some(ref mut bg) = opt_bg_color {
+                                bg.0 = Color::NONE;
+                            }
+                            image_node.color = Color::WHITE;
+                            image_node.image = texture_handle.clone();
+                            image_node.image_mode = if theme.progress_bar_track_margin > 0.0 {
+                                NodeImageMode::Sliced(TextureSlicer {
+                                    border: BorderRect::all(theme.progress_bar_track_margin),
+                                    ..default()
+                                })
+                            } else {
+                                NodeImageMode::Stretch
+                            };
+                        }
+                    }
+                }
+                RuiThemeElement::ProgressBarFill => {
+                    if let Some(mut image_node) = opt_image_node {
+                        if let Some(ref texture_handle) = theme.image_progress_bar_fill {
+                            if let Some(ref mut bg) = opt_bg_color {
+                                bg.0 = Color::NONE;
+                            }
+                            image_node.color = Color::WHITE;
+                            image_node.image = texture_handle.clone();
+                            image_node.image_mode = if theme.progress_bar_fill_margin > 0.0 {
+                                NodeImageMode::Sliced(TextureSlicer {
+                                    border: BorderRect::all(theme.progress_bar_fill_margin),
+                                    ..default()
+                                })
+                            } else {
+                                NodeImageMode::Stretch
+                            };
+                        }
+                    }
+                }
+                RuiThemeElement::Tab | RuiThemeElement::TabActive => {
+                    let is_active = *element == RuiThemeElement::TabActive;
+                    let tex = if is_active {
+                        theme.image_tab_active.clone()
+                    } else if hovered.is_some() {
+                        theme.image_tab_hover.clone()
+                    } else {
+                        theme.image_tab_normal.clone()
+                    };
+                    if let Some(mut image_node) = opt_image_node {
+                        if let Some(texture_handle) = tex {
+                            if let Some(ref mut bg) = opt_bg_color {
+                                bg.0 = Color::NONE;
+                            }
+                            image_node.color = Color::WHITE;
+                            image_node.image = texture_handle;
+                            image_node.image_mode = if theme.tab_margin > 0.0 {
+                                NodeImageMode::Sliced(TextureSlicer {
+                                    border: BorderRect::all(theme.tab_margin),
+                                    ..default()
+                                })
+                            } else {
+                                NodeImageMode::Stretch
+                            };
+                        }
+                    }
+                }
+                _ => {}
+            }
         }
-    } else {
-        bg_color.0 = theme.color_panel;
     }
-}
-RuiThemeElement::Panel => {
-bg_color.0 = theme.color_panel;
-if let Some(mut image_node) = opt_image_node {
-if let Some(ref texture_handle) = theme.image_panel {
-image_node.image = texture_handle.clone();
-image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
-border: BorderRect::all(theme.panel_margin),
-..default()
-});
-}
-}
-}
-RuiThemeElement::WindowHeader => {
-bg_color.0 = theme.color_window_header;
-if let Some(mut image_node) = opt_image_node {
-if let Some(ref texture_handle) = theme.image_window_header {
-image_node.image = texture_handle.clone();
-image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
-border: BorderRect::all(theme.window_header_margin),
-..default()
-});
-}
-}
-}
-RuiThemeElement::TextboxBg => {
-bg_color.0 = theme.color_textbox_bg;
-if let Some(mut image_node) = opt_image_node {
-if let Some(ref texture_handle) = theme.image_textbox_bg {
-image_node.image = texture_handle.clone();
-image_node.image_mode = NodeImageMode::Sliced(TextureSlicer {
-border: BorderRect::all(theme.textbox_margin),
-..default()
-});
-}
-}
-}
-_ => {}
-}
-}
-}
-for (mut text_font, mut text_color, element) in &mut text_elements {
-if theme_changed || element.is_changed() || element.is_added() {
-text_font.font = FontSource::Handle(theme.font.clone());
-match *element {
-RuiThemeElement::Text => text_color.0 = theme.color_text,
-RuiThemeElement::ButtonText => text_color.0 = theme.color_button_text,
-RuiThemeElement::WindowHeaderText => text_color.0 = theme.color_window_header_text,
-_ => {}
-}
-}
-}
+    for (mut text_font, mut text_color, element) in &mut text_elements {
+        if theme_changed || element.is_changed() || element.is_added() {
+            text_font.font = FontSource::Handle(theme.font.clone());
+            match *element {
+                RuiThemeElement::Text => text_color.0 = theme.color_text,
+                RuiThemeElement::ButtonText => text_color.0 = theme.color_button_text,
+                RuiThemeElement::WindowHeaderText => text_color.0 = theme.color_window_header_text,
+                _ => {}
+            }
+        }
+    }
 }

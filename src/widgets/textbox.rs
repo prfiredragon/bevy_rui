@@ -121,6 +121,8 @@ pub fn spawn_textbox<'w>(
             ..default()
         },
         crate::theme::RuiThemeElement::TextboxBg,
+        ImageNode::default(),
+        BackgroundColor(Color::srgb(0.1, 0.1, 0.1)),
         BorderColor::from(Color::srgb(0.05, 0.05, 0.05)),
         RuiTextBox { 
             placeholder: placeholder.to_string(), 
@@ -179,6 +181,8 @@ pub fn spawn_multiline_textbox<'w>(
             ..default()
         },
         crate::theme::RuiThemeElement::TextboxBg,
+        ImageNode::default(),
+        BackgroundColor(Color::srgb(0.1, 0.1, 0.1)),
         BorderColor::from(Color::srgb(0.05, 0.05, 0.05)),
         RuiTextBox { 
             placeholder: placeholder.to_string(), 
