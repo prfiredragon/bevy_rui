@@ -3,6 +3,7 @@ name = "bevy_rui"
 version = "0.1.7"
 edition = "2024"
 readme = "README.md"
+repository = "https://github.com/prfiredragon/bevy_rui"
 description = "UI widgets and layout system for the Bevy engine"
 license = "CC0 1.0 Universal"
 exclude = ["assets/*", "docs/*", "screenshots/*", "*.png", "*.mp4"]
