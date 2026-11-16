@@ -4,7 +4,7 @@ version = "0.1.7"
 edition = "2024"
 readme = "README.md"
 exclude = ["assets/*", "docs/*", "screenshots/*", "*.png", "*.mp4"]
-include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
+include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE", "examples/*"]
 
 #[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 #arboard = { version = "3.6.1", features = ["wayland-data-control"] }
