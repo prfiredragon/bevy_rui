@@ -32,8 +32,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(RuiDefaultFont(asset_server.load("fonts/afacad.ttf")));
     commands.spawn(Camera2d);
 
-    let start_dir = env::current_dir().unwrap_or_else(|_| env::temp_dir());
-
     let root_id = commands
         .rui_root(
             |s| {
@@ -91,7 +89,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 .observe(open_dialog_observer(FileDialogMode::Save));
 
                             c.reborrow()
-                                .label("Resultado: Diálogo abierto", |f, col| {
+                                .label("Resultado: Selecciona Abrir o Guardar", |f, col| {
                                     f.font_size = FontSize::Px(16.0);
                                     col.0 = Color::srgb(0.5, 0.9, 0.6);
                                 })
@@ -102,29 +100,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                         BackgroundColor(Color::srgb(0.15, 0.15, 0.17)),
                         BorderColor::from(Color::srgb(0.3, 0.3, 0.35)),
                     ));
-
-                let mut dlg_spawner = root.reborrow();
-                let mut dlg = spawn_file_dialog(
-                    &mut dlg_spawner,
-                    "Seleccionar Archivo",
-                    FileDialogMode::Open,
-                    start_dir,
-                    None,
-                    vec![
-                        FileFilter {
-                            name: "Todos (*.*)".to_string(),
-                            extensions: vec!["*".to_string()],
-                        },
-                        FileFilter {
-                            name: "Rust (*.rs)".to_string(),
-                            extensions: vec!["rs".to_string()],
-                        },
-                    ],
-                );
-                dlg.entry::<Node>().and_modify(|mut n| {
-                    n.left = Val::Auto;
-                    n.top = Val::Auto;
-                });
             },
         )
         .id();
