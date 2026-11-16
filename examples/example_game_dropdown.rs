@@ -19,6 +19,7 @@ fn main() {
                 }),
         )
         .add_plugins(RuiPlugin)
+        .insert_resource(RuiNavigationConfig { enabled: true })
         .add_systems(Startup, setup)
         .add_systems(Update, sync_dropdown_label)
         .run();
@@ -37,61 +38,50 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut theme: ResM
         },
         |ui| {
             let mut root = ui.reborrow();
-            root.vbox(
+            root.window(
+                "Game Dropdown",
+                false,
                 |s| {
                     s.width = Val::Px(360.0);
-                    s.height = Val::Auto;
-                    s.padding = UiRect::all(Val::Px(20.0));
-                    s.row_gap = Val::Px(16.0);
-                    s.align_items = AlignItems::Center;
+                    s.left = Val::Auto;
+                    s.top = Val::Auto;
                     s.overflow = Overflow::visible();
                 },
-                |card| {
-                    let mut c = card.reborrow();
+                |win, _| {
+                    let mut c = win.reborrow();
 
-                    c.reborrow()
-                        .vbox(
-                            |s| {
-                                s.width = Val::Percent(100.0);
-                                s.height = Val::Px(36.0);
-                                s.justify_content = JustifyContent::Center;
-                                s.align_items = AlignItems::Center;
-                            },
-                            |hdr| {
-                                hdr.reborrow()
-                                    .label("Game Dropdown", |f, _| f.font_size = FontSize::Px(20.0))
-                                    .insert(RuiThemeElement::WindowHeaderText);
-                            },
-                        )
-                        .insert((
-                            ImageNode::default(),
-                            BackgroundColor(Color::NONE),
-                            RuiThemeElement::WindowHeader,
-                        ));
-
-                    c.reborrow().dropdown(
-                        "Guerrero",
-                        &["Guerrero", "Mago", "Arquero", "Paladín"],
+                    c.reborrow().vbox(
                         |s| {
-                            s.width = Val::Px(240.0);
-                            s.height = Val::Px(44.0);
-                            s.padding = UiRect::horizontal(Val::Px(12.0));
+                            s.width = Val::Percent(100.0);
+                            s.height = Val::Auto;
+                            s.row_gap = Val::Px(16.0);
+                            s.padding = UiRect::vertical(Val::Px(6.0));
+                            s.align_items = AlignItems::Center;
+                            s.overflow = Overflow::visible();
+                        },
+                        |body| {
+                            let mut b = body.reborrow();
+
+                            b.reborrow().dropdown(
+                                "Guerrero",
+                                &["Guerrero", "Mago", "Arquero", "Paladín"],
+                                |s| {
+                                    s.width = Val::Px(240.0);
+                                    s.height = Val::Px(44.0);
+                                    s.padding = UiRect::horizontal(Val::Px(12.0));
+                                },
+                            );
+
+                            b.reborrow()
+                                .label("Héroe elegido: Guerrero", |font, color| {
+                                    font.font_size = FontSize::Px(18.0);
+                                    color.0 = Color::WHITE;
+                                })
+                                .insert(SelectedDropdownLabel);
                         },
                     );
-
-                    c.reborrow()
-                        .label("Héroe elegido: Guerrero", |font, color| {
-                            font.font_size = FontSize::Px(18.0);
-                            color.0 = Color::WHITE;
-                        })
-                        .insert(SelectedDropdownLabel);
                 },
-            )
-            .insert((
-                ImageNode::default(),
-                BackgroundColor(Color::NONE),
-                RuiThemeElement::Panel,
-            ));
+            );
         },
     );
 }

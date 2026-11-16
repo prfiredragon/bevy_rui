@@ -550,6 +550,7 @@ pub fn apply_rui_theme(
                     };
 
                     if let Some(mut image_node) = opt_image_node {
+                        image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
                         if let Some(texture_handle) = tex {
                             if let Some(ref mut bg) = opt_bg_color {
                                 bg.0 = Color::NONE;
@@ -587,6 +588,7 @@ pub fn apply_rui_theme(
                         theme.image_list_item_normal.clone()
                     };
                     if let Some(mut image_node) = opt_image_node {
+                        image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
                         if let Some(texture_handle) = tex {
                             if let Some(ref mut bg) = opt_bg_color {
                                 bg.0 = Color::NONE;
@@ -615,6 +617,7 @@ pub fn apply_rui_theme(
                         (&theme.image_panel, theme.panel_margin)
                     };
                     if let Some(mut image_node) = opt_image_node {
+                        image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
                         if let Some(texture_handle) = tex_opt {
                             if let Some(ref mut bg) = opt_bg_color {
                                 bg.0 = Color::NONE;
@@ -646,6 +649,7 @@ pub fn apply_rui_theme(
                         }
                     }
                     if let Some(mut image_node) = opt_image_node {
+                        image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
                         if let Some(ref texture_handle) = theme.image_window_header {
                             if let Some(ref mut bg) = opt_bg_color {
                                 bg.0 = Color::NONE;
@@ -669,6 +673,7 @@ pub fn apply_rui_theme(
                 }
                 RuiThemeElement::TextboxBg => {
                     if let Some(mut image_node) = opt_image_node {
+                        image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
                         if let Some(ref texture_handle) = theme.image_textbox_bg {
                             if let Some(ref mut bg) = opt_bg_color {
                                 bg.0 = Color::NONE;
@@ -692,6 +697,7 @@ pub fn apply_rui_theme(
                 }
                 RuiThemeElement::ProgressBarTrack => {
                     if let Some(mut image_node) = opt_image_node {
+                        image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
                         if let Some(ref texture_handle) = theme.image_progress_bar_track {
                             if let Some(ref mut bg) = opt_bg_color {
                                 bg.0 = Color::NONE;
@@ -711,6 +717,7 @@ pub fn apply_rui_theme(
                 }
                 RuiThemeElement::ProgressBarFill => {
                     if let Some(mut image_node) = opt_image_node {
+                        image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
                         if let Some(ref texture_handle) = theme.image_progress_bar_fill {
                             if let Some(ref mut bg) = opt_bg_color {
                                 bg.0 = Color::NONE;
@@ -728,6 +735,39 @@ pub fn apply_rui_theme(
                         }
                     }
                 }
+                RuiThemeElement::SliderTrack => {
+                    if let Some(mut image_node) = opt_image_node {
+                        image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
+                        if let Some(ref texture_handle) = theme.image_slider_track {
+                            if let Some(ref mut bg) = opt_bg_color {
+                                bg.0 = Color::NONE;
+                            }
+                            image_node.color = Color::WHITE;
+                            image_node.image = texture_handle.clone();
+                            image_node.image_mode = if theme.slider_track_margin > 0.0 {
+                                NodeImageMode::Sliced(TextureSlicer {
+                                    border: BorderRect::all(theme.slider_track_margin),
+                                    ..default()
+                                })
+                            } else {
+                                NodeImageMode::Stretch
+                            };
+                        }
+                    }
+                }
+                RuiThemeElement::SliderHandle => {
+                    if let Some(mut image_node) = opt_image_node {
+                        image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
+                        if let Some(ref texture_handle) = theme.image_slider_handle {
+                            if let Some(ref mut bg) = opt_bg_color {
+                                bg.0 = Color::NONE;
+                            }
+                            image_node.color = Color::WHITE;
+                            image_node.image = texture_handle.clone();
+                            image_node.image_mode = NodeImageMode::Stretch;
+                        }
+                    }
+                }
                 RuiThemeElement::Tab | RuiThemeElement::TabActive => {
                     let is_active = *element == RuiThemeElement::TabActive;
                     let tex = if is_active {
@@ -738,6 +778,7 @@ pub fn apply_rui_theme(
                         theme.image_tab_normal.clone()
                     };
                     if let Some(mut image_node) = opt_image_node {
+                        image_node.visual_box = bevy::ui::VisualBox::PaddingBox;
                         if let Some(texture_handle) = tex {
                             if let Some(ref mut bg) = opt_bg_color {
                                 bg.0 = Color::NONE;

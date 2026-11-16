@@ -37,8 +37,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut theme: ResM
 
     commands.spawn(Camera2d);
 
-    let start_dir = env::current_dir().unwrap_or_else(|_| env::temp_dir());
-
     let root_id = commands
         .rui_root(
             |s| {
@@ -90,36 +88,13 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut theme: ResM
                             .observe(open_dialog_observer(FileDialogMode::Save));
 
                         c.reborrow()
-                            .label("Selecciona un archivo", |f, col| {
+                            .label("Selecciona Cargar o Guardar", |f, col| {
                                 f.font_size = FontSize::Px(16.0);
                                 col.0 = Color::WHITE;
                             })
                             .insert(DialogResultText);
                     },
                 );
-
-                let mut dlg_spawner = root.reborrow();
-                let mut dlg = spawn_file_dialog(
-                    &mut dlg_spawner,
-                    "Cargar Partida",
-                    FileDialogMode::Open,
-                    start_dir,
-                    None,
-                    vec![
-                        FileFilter {
-                            name: "Todos (*.*)".to_string(),
-                            extensions: vec!["*".to_string()],
-                        },
-                        FileFilter {
-                            name: "Rust (*.rs)".to_string(),
-                            extensions: vec!["rs".to_string()],
-                        },
-                    ],
-                );
-                dlg.entry::<Node>().and_modify(|mut n| {
-                    n.left = Val::Auto;
-                    n.top = Val::Auto;
-                });
             },
         )
         .id();

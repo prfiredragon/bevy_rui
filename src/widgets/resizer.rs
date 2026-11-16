@@ -1,6 +1,6 @@
 //! Interactive splitter/resizer bar for adjusting adjacent flex panes and collapsing/expanding panels.
 
-use bevy::{ecs::relationship::Relationship, prelude::*};
+use bevy::{ecs::relationship::Relationship, prelude::*, ui_widgets::Activate};
 use crate::widgets::RuiButtonStateColors;
 
 /// Resize axis direction for a [`RuiResizer`].
@@ -89,6 +89,82 @@ pub fn spawn_resizer<'a>(
             next_text_id = b.spawn((Text::new(next_text), TextFont { font_size: bevy::prelude::FontSize::Px(14.0), ..default() }, TextColor(Color::WHITE), Pickable::IGNORE)).id();
         });
         next_btn.insert(RuiResizerCollapseBtn { resizer_entity: resizer_id, is_prev: false, text_entity: next_text_id });
+        next_btn.observe(
+            |trigger: On<Activate>,
+             q_clicks: Query<&RuiResizerCollapseBtn>,
+             mut q_resizer: Query<(&mut RuiResizer, &ChildOf)>,
+             q_children: Query<&Children>,
+             mut q_node: Query<(&mut Node, &ComputedNode)>,
+             mut q_text: Query<&mut Text>,
+             q_all_btns: Query<(Entity, &RuiResizerCollapseBtn)>| {
+                let Ok(btn) = q_clicks.get(trigger.entity) else { return; };
+                let Ok((mut resizer, parent)) = q_resizer.get_mut(btn.resizer_entity) else { return; };
+                if (btn.is_prev && resizer.is_collapsed_next) || (!btn.is_prev && resizer.is_collapsed_prev) {
+                    return;
+                }
+
+                let Ok(children) = q_children.get(parent.get()) else { return; };
+                let Some(pos) = children.iter().position(|e| e == btn.resizer_entity) else { return; };
+                if pos == 0 || pos + 1 >= children.len() { return; }
+
+                let (prev_e, next_e) = (children[pos - 1], children[pos + 1]);
+
+                // Solo fijamos los tamaños iniciales cuando ambos paneles están visibles
+                if !resizer.is_collapsed_prev && !resizer.is_collapsed_next {
+                    if let Ok((mut prev_n, prev_c)) = q_node.get_mut(prev_e) {
+                        if prev_n.flex_basis != Val::Percent(0.0) {
+                            let sz = if resizer.dir == RuiResizerDir::Vertical { prev_c.size().y } else { prev_c.size().x };
+                            if sz > 0.0 {
+                                prev_n.flex_basis = Val::Percent(0.0);
+                                prev_n.flex_grow = sz;
+                                if resizer.dir == RuiResizerDir::Vertical { prev_n.height = Val::Auto; } else { prev_n.width = Val::Auto; }
+                            }
+                        }
+                    }
+                    if let Ok((mut next_n, next_c)) = q_node.get_mut(next_e) {
+                        if next_n.flex_basis != Val::Percent(0.0) {
+                            let sz = if resizer.dir == RuiResizerDir::Vertical { next_c.size().y } else { next_c.size().x };
+                            if sz > 0.0 {
+                                next_n.flex_basis = Val::Percent(0.0);
+                                next_n.flex_grow = sz;
+                                if resizer.dir == RuiResizerDir::Vertical { next_n.height = Val::Auto; } else { next_n.width = Val::Auto; }
+                            }
+                        }
+                    }
+                }
+
+                if btn.is_prev {
+                    resizer.is_collapsed_prev = !resizer.is_collapsed_prev;
+                    if let Ok((mut n, _)) = q_node.get_mut(prev_e) {
+                        n.display = if resizer.is_collapsed_prev { Display::None } else { Display::Flex };
+                    }
+                } else {
+                    resizer.is_collapsed_next = !resizer.is_collapsed_next;
+                    if let Ok((mut n, _)) = q_node.get_mut(next_e) {
+                        n.display = if resizer.is_collapsed_next { Display::None } else { Display::Flex };
+                    }
+                }
+
+                if let Ok(mut text) = q_text.get_mut(btn.text_entity) {
+                    let collapsed = if btn.is_prev { resizer.is_collapsed_prev } else { resizer.is_collapsed_next };
+                    text.0 = get_arrow_char(btn.is_prev, collapsed, resizer.dir == RuiResizerDir::Horizontal);
+                }
+
+                for (sibling_entity, sibling_btn) in &q_all_btns {
+                    if sibling_btn.resizer_entity == btn.resizer_entity {
+                        if let Ok((mut sibling_node, _)) = q_node.get_mut(sibling_entity) {
+                            sibling_node.display = if (sibling_btn.is_prev && resizer.is_collapsed_next)
+                                || (!sibling_btn.is_prev && resizer.is_collapsed_prev)
+                            {
+                                Display::None
+                            } else {
+                                Display::Flex
+                            };
+                        }
+                    }
+                }
+            },
+        );
     });
     // OBSERVADOR REACTIVO: Sincroniza dinámicamente el flex_grow de los paneles adyacentes usando el delta liso del PointerDrag de Bevy 0.20
     cmds.observe(
@@ -152,13 +228,12 @@ pub fn spawn_resizer<'a>(
 pub fn handle_resizer_drag(
     mut q_window: Query<(Entity, &Window, Option<&mut bevy::window::CursorIcon>), With<bevy::window::PrimaryWindow>>,
     mut commands: Commands,
-    q_resizer: Query<&RuiResizer>,
-    q_hovered: Query<&bevy::picking::hover::Hovered>,
+    q_resizer: Query<(&RuiResizer, &bevy::picking::hover::Hovered)>,
 ) {
     let mut desired_cursor = None;
 
-    // Evaluamos los estados basándonos en el componente Hovered unificado oficial de Bevy 0.20
-    for (resizer, hovered) in q_resizer.iter().zip(q_hovered.iter()) {
+    // Evaluamos los estados basándonos en el componente Hovered de la misma entidad RuiResizer
+    for (resizer, hovered) in &q_resizer {
         if hovered.0 {
             desired_cursor = Some(if resizer.dir == RuiResizerDir::Vertical {
                 bevy::window::SystemCursorIcon::RowResize
@@ -186,6 +261,7 @@ pub fn handle_resizer_drag(
         }
     }
 }
+
 /// Función pura aislada para resolver el carácter de la flecha sin saturar el buffer
 fn get_arrow_char(is_prev: bool, is_collapsed: bool, is_hor: bool) -> String {
     if is_prev {
@@ -196,59 +272,5 @@ fn get_arrow_char(is_prev: bool, is_collapsed: bool, is_hor: bool) -> String {
     .to_string()
 }
 
-/// System that collapses or restores adjacent flex panes when a [`RuiResizerCollapseBtn`] is clicked.
-pub fn handle_resizer_collapse_clicks(
-    q_clicks: Query<&RuiResizerCollapseBtn, With<bevy::ui::Pressed>>,
-    mut q_resizer: Query<(&mut RuiResizer, &ChildOf)>,
-    q_children: Query<&Children>,
-    mut q_node: Query<(&mut Node, &ComputedNode)>,
-    mut q_text: Query<&mut Text>,
-    q_all_btns: Query<(Entity, &RuiResizerCollapseBtn)>,
-) {
-    for btn in &q_clicks {
-        let Ok((mut resizer, parent)) = q_resizer.get_mut(btn.resizer_entity) else { continue; };
-        if (btn.is_prev && resizer.is_collapsed_next) || (!btn.is_prev && resizer.is_collapsed_prev) { continue; }
-
-        let Ok(children) = q_children.get(parent.get()) else { continue; };
-        let Some(pos) = children.iter().position(|e| e == btn.resizer_entity) else { continue; };
-        if pos == 0 || pos + 1 >= children.len() { continue; }
-
-        let (prev_e, next_e) = (children[pos - 1], children[pos + 1]);
-
-        if let Ok((mut prev_n, prev_c)) = q_node.get_mut(prev_e) {
-            if prev_n.flex_basis != Val::Percent(0.0) {
-                prev_n.flex_basis = Val::Percent(0.0);
-                prev_n.flex_grow = if resizer.dir == RuiResizerDir::Vertical { prev_c.size().y } else { prev_c.size().x };
-                if resizer.dir == RuiResizerDir::Vertical { prev_n.height = Val::Auto; } else { prev_n.width = Val::Auto; }
-            }
-        }
-        if let Ok((mut next_n, next_c)) = q_node.get_mut(next_e) {
-            if next_n.flex_basis != Val::Percent(0.0) {
-                next_n.flex_basis = Val::Percent(0.0);
-                next_n.flex_grow = if resizer.dir == RuiResizerDir::Vertical { next_c.size().y } else { next_c.size().x };
-                if resizer.dir == RuiResizerDir::Vertical { next_n.height = Val::Auto; } else { next_n.width = Val::Auto; }
-            }
-        }
-
-        if btn.is_prev {
-            resizer.is_collapsed_prev = !resizer.is_collapsed_prev;
-            if let Ok((mut n, _)) = q_node.get_mut(prev_e) { n.display = if resizer.is_collapsed_prev { Display::None } else { Display::Flex }; }
-        } else {
-            resizer.is_collapsed_next = !resizer.is_collapsed_next;
-            if let Ok((mut n, _)) = q_node.get_mut(next_e) { n.display = if resizer.is_collapsed_next { Display::None } else { Display::Flex }; }
-        }
-
-        if let Ok(mut text) = q_text.get_mut(btn.text_entity) {
-            let collapsed = if btn.is_prev { resizer.is_collapsed_prev } else { resizer.is_collapsed_next };
-            text.0 = get_arrow_char(btn.is_prev, collapsed, resizer.dir == RuiResizerDir::Horizontal);
-        }
-
-        for (sibling_entity, sibling_btn) in &q_all_btns {
-            if sibling_btn.resizer_entity == btn.resizer_entity {
-                if let Ok((mut sibling_node, _)) = q_node.get_mut(sibling_entity) {
-                    sibling_node.display = if (sibling_btn.is_prev && resizer.is_collapsed_next) || (!sibling_btn.is_prev && resizer.is_collapsed_prev) { Display::None } else { Display::Flex };
-                }
-            }
-        }
-    }
-}
+/// Placeholder system kept for backwards compatibility (collapse is handled via `On<Activate>` observer on [`RuiResizerCollapseBtn`]).
+pub fn handle_resizer_collapse_clicks() {}

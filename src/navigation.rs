@@ -125,13 +125,23 @@ pub fn check_buttons(buttons: &[GamepadButton], gamepads: &Query<&Gamepad>) -> b
     })
 }
 
-/// Computes the 2D directional navigation vector from keyboard and gamepad bindings.
+/// Computes the 2D directional navigation vector from keyboard, gamepad D-Pad buttons, and gamepad left stick.
 fn get_navigation_vector(b: &RuiNavigationBindings, k: &ButtonInput<KeyCode>, g: &Query<&Gamepad>) -> Vec2 {
     let mut v = Vec2::ZERO;
     if check_keys(k, &b.up_keys) || check_buttons(&b.up_buttons, g) { v.y += 1.0; }
     if check_keys(k, &b.down_keys) || check_buttons(&b.down_buttons, g) { v.y -= 1.0; }
     if check_keys(k, &b.left_keys) || check_buttons(&b.left_buttons, g) { v.x -= 1.0; }
     if check_keys(k, &b.right_keys) || check_buttons(&b.right_buttons, g) { v.x += 1.0; }
+
+    for gamepad in g {
+        let stick = gamepad.left_stick();
+        if stick.x.abs() > 0.5 {
+            v.x += stick.x.signum();
+        }
+        if stick.y.abs() > 0.5 {
+            v.y += stick.y.signum();
+        }
+    }
     v
 }
 

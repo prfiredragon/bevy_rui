@@ -1,8 +1,14 @@
 [package]
 name = "bevy_rui"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2024"
 readme = "README.md"
+repository = "https://github.com/prfiredragon/bevy_rui"
+description = "UI widgets and layout system for the Bevy engine"
+license = "CC0-1.0"
+documentation = "https://docs.rs/bevy_rui/0.1.8/bevy_rui/"
+exclude = ["assets/*", "docs/*", "screenshots/*", "*.png", "*.mp4"]
+include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
 
 #[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 #arboard = { version = "3.6.1", features = ["wayland-data-control"] }
@@ -19,8 +25,7 @@ wayland = ["arboard/wayland-data-control"]
 
 
 [dependencies]
-bevy = { version = "0.20.0", features = ["bevy_feathers"] }
+bevy = { version = "0.20.1", features = ["bevy_feathers"] }
 ropey = "1.6"
 syntect = { version = "5.2", default-features = false, features = ["default-syntaxes", "default-themes", "regex-fancy"] }
-bevy_camera = "0.20.0"
-
+bevy_camera = "0.20.1"

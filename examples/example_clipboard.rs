@@ -19,6 +19,7 @@ fn main() {
             ..default()
         }))
         .add_plugins(RuiPlugin)
+        .insert_resource(RuiNavigationConfig { enabled: true })
         .add_systems(Startup, setup)
         .run();
 }
@@ -53,7 +54,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     });
 
                     c.reborrow()
-                        .textbox("Escribe algo para copiar...", |s, font, _| {
+                        .textbox("Type something to copy...", |s, font, _| {
                             s.width = Val::Percent(100.0);
                             s.height = Val::Px(42.0);
                             font.font_size = FontSize::Px(18.0);
@@ -61,8 +62,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                         .insert((
                             ClipboardTextBox,
                             RuiTextBox {
-                                text: "¡Hola desde RuiClipboard!".to_string(),
-                                placeholder: "Escribe algo para copiar...".to_string(),
+                                text: "Hello from RuiClipboard!".to_string(),
+                                placeholder: "Type something to copy...".to_string(),
                                 ..default()
                             },
                         ));
@@ -85,7 +86,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                     },
                                     |btn| {
                                         btn.reborrow()
-                                            .label("Copiar", |f, _| f.font_size = FontSize::Px(18.0))
+                                            .label("Copy", |f, _| f.font_size = FontSize::Px(18.0))
                                             .insert(RuiThemeElement::ButtonText);
                                     },
                                 )
@@ -97,7 +98,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                         if let Ok(tb) = q_box.single() {
                                             clipboard.set_text(tb.text.clone());
                                             if let Ok(mut status) = q_status.single_mut() {
-                                                status.0 = format!("Copiado: \"{}\"", tb.text);
+                                                status.0 = format!("Copied: \"{}\"", tb.text);
                                             }
                                         }
                                     },
@@ -111,7 +112,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                     },
                                     |btn| {
                                         btn.reborrow()
-                                            .label("Pegar", |f, _| f.font_size = FontSize::Px(18.0))
+                                            .label("Paste", |f, _| f.font_size = FontSize::Px(18.0))
                                             .insert(RuiThemeElement::ButtonText);
                                     },
                                 )
@@ -121,12 +122,13 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                      mut q_status: Query<&mut Text, With<ClipboardStatus>>,
                                      mut clipboard: NonSendMut<RuiClipboard>| {
                                         if let Some(text) = clipboard.get_text() {
+                                            let clean = text.replace(['\r', '\n'], " ");
                                             if let Ok(mut tb) = q_box.single_mut() {
-                                                tb.text = text.clone();
+                                                tb.text = clean.clone();
                                                 tb.cursor_index = tb.text.chars().count();
                                             }
                                             if let Ok(mut status) = q_status.single_mut() {
-                                                status.0 = format!("Pegado: \"{}\"", text);
+                                                status.0 = format!("Pasted: \"{}\"", clean);
                                             }
                                         }
                                     },
@@ -135,8 +137,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     );
 
                     c.reborrow()
-                        .label("Estado: Listo", |font, color| {
-                            font.font_size = FontSize::Px(16.0);
+                        .label("Status: Ready (Click Copy/Paste or use Ctrl+C / Ctrl+V)", |font, color| {
+                            font.font_size = FontSize::Px(15.0);
                             color.0 = Color::srgb(0.5, 0.9, 0.6);
                         })
                         .insert(ClipboardStatus);

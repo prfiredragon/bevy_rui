@@ -242,7 +242,41 @@ pub fn sync_native_textbox_buffers(
     }
 }
 
-/// Placeholder system kept for backwards compatibility.
-pub fn handle_textbox_input() {}
+/// System handling keyboard clipboard shortcuts (`Ctrl+C` / `Ctrl+V`) on the focused [`RuiTextBox`].
+pub fn handle_textbox_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    focus: Res<bevy::input_focus::InputFocus>,
+    mut q_textboxes: Query<(Entity, &mut RuiTextBox)>,
+    #[cfg(not(target_arch = "wasm32"))]
+    mut clipboard: Option<NonSendMut<crate::widgets::clipboard::RuiClipboard>>,
+) {
+    let Some(focused_entity) = focus.get() else { return; };
+    let ctrl = keys.pressed(KeyCode::ControlLeft)
+        || keys.pressed(KeyCode::ControlRight)
+        || keys.pressed(KeyCode::SuperLeft)
+        || keys.pressed(KeyCode::SuperRight);
+    if !ctrl {
+        return;
+    }
+
+    if let Ok((_entity, mut tb)) = q_textboxes.get_mut(focused_entity) {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(ref mut clip) = clipboard {
+            if keys.just_pressed(KeyCode::KeyC) {
+                clip.set_text(tb.text.clone());
+            } else if keys.just_pressed(KeyCode::KeyV) && !tb.readonly {
+                if let Some(pasted) = clip.get_text() {
+                    let clean = if tb.mode == RuiTextBoxMode::SingleLine {
+                        pasted.replace(['\r', '\n'], " ")
+                    } else {
+                        pasted
+                    };
+                    tb.text = clean;
+                    tb.cursor_index = tb.text.chars().count();
+                }
+            }
+        }
+    }
+}
 /// Placeholder system kept for backwards compatibility.
 pub fn handle_textbox_scroll() {}

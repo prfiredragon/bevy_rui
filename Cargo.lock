@@ -1559,7 +1559,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_rui"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "arboard",
  "bevy",

@@ -3,7 +3,7 @@
 //! A Retained UI (RUI) widget library for Bevy 0.20 built on top of Bevy's native UI and Feathers controls.
 //!
 //! ## Core Modules
-//! - [`widgets`]: 21 ready-to-use UI widgets (`button`, `window`, `tabs`, `docks`, `code_editor`, `file_dialog`, `menu`, `dropdown`, `slider`, `scrollview`, `textbox`, `color_picker`, etc.) and builder traits ([`RuiBuilderExt`], [`RuiRootBuilderExt`]).
+//! - [`widgets`]: Ready-to-use UI widgets (`button`, `window`, `tabs`, `docks`, `file_dialog`, `menu`, `dropdown`, `slider`, `scrollview`, `textbox`, `color_picker`, etc.) and builder traits ([`RuiBuilderExt`], [`RuiRootBuilderExt`]).
 //! - [`theme`]: Centralized styling resource ([`RuiTheme`]) and element role markers ([`RuiThemeElement`]) supporting solid colors, borders, and 9-slice (`NodeImageMode::Sliced`) textures.
 //! - [`focus`]: Window focus stack ([`RuiActiveScope`]) and focusable widget marker ([`Focusable`]).
 //! - [`navigation`]: Keyboard and gamepad directional UI navigation ([`RuiNavigationPlugin`], [`RuiNavigationBindings`], [`RuiNavigationConfig`]).
@@ -65,7 +65,6 @@ impl Plugin for RuiPlugin {
         app.add_observer(ensure_pickable::<focus::Focusable>);
         app.add_observer(ensure_pickable::<theme::RuiThemeElement>);
         app.add_plugins(navigation::RuiNavigationPlugin);
-        app.add_systems(Update, widgets::resizer::handle_resizer_drag);
         app.add_plugins(widgets::RuiWidgets);
     }
 }

@@ -51,6 +51,7 @@ pub fn spawn_window<'w>(
         ..default()
     };
     modifier(&mut s);
+    let content_overflow = s.overflow;
 
     let mut cmds = parent_cmd.spawn((
         s,
@@ -65,6 +66,20 @@ pub fn spawn_window<'w>(
     ));
 
     let window_id = cmds.id();
+    cmds.observe(
+        move |_on_press: On<PointerPress>,
+              mut q_windows: Query<(Entity, &mut ZIndex), With<RuiWindow>>,
+              mut active_scope: ResMut<crate::focus::RuiActiveScope>| {
+            let max_z = q_windows.iter().map(|(_, z)| z.0).max().unwrap_or(100);
+            let max_count = q_windows.iter().filter(|(_, wz)| wz.0 == max_z).count();
+            if let Ok((_, mut z)) = q_windows.get_mut(window_id) {
+                if z.0 < max_z || max_count > 1 {
+                    *z = ZIndex(max_z + 1);
+                }
+            }
+            active_scope.set_active_window(window_id);
+        },
+    );
     cmds.with_children(|parent| {
         let header_id = parent.spawn((
             Node { display: Display::Flex, align_self: AlignSelf::Stretch, height: Val::Px(35.0), padding: UiRect::all(Val::Px(6.0)), justify_content: JustifyContent::SpaceBetween, align_items: AlignItems::Center, ..default() },
@@ -122,30 +137,49 @@ pub fn spawn_window<'w>(
         );
 
         parent.spawn((
-            Node { display: Display::Flex, flex_direction: FlexDirection::Column, flex_grow: 1.0, overflow: Overflow::clip(), width: Val::Percent(100.0), padding: UiRect::all(Val::Px(10.0)), ..default() },
+            Node {
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
+                flex_grow: 1.0,
+                min_width: Val::Px(0.0),
+                min_height: Val::Px(0.0),
+                overflow: content_overflow,
+                width: Val::Percent(100.0),
+                padding: UiRect::all(Val::Px(10.0)),
+                ..default()
+            },
             Pickable::default(),
         )).with_children(|p| children(p, window_id));
     });
     cmds
 }
 
-/// System that pushes newly spawned [`RuiWindow`] entities onto [`crate::focus::RuiActiveScope`].
+/// System that pushes newly spawned [`RuiWindow`] entities onto [`crate::focus::RuiActiveScope`]
+/// and assigns them the highest [`ZIndex`] so they appear in front of existing windows.
 pub fn handle_new_windows(
     mut active_scope: ResMut<crate::focus::RuiActiveScope>,
-    query: Query<Entity, Added<RuiWindow>>,
+    added_query: Query<Entity, Added<RuiWindow>>,
+    mut q_windows: Query<(Entity, &mut ZIndex), With<RuiWindow>>,
 ) {
-    for entity in &query {
+    if added_query.is_empty() {
+        return;
+    }
+    let mut max_z = q_windows.iter().map(|(_, z)| z.0).max().unwrap_or(100);
+    for entity in &added_query {
+        max_z += 1;
+        if let Ok((_, mut z)) = q_windows.get_mut(entity) {
+            *z = ZIndex(max_z);
+        }
         active_scope.push_window(entity);
     }
 }
 
-/// System that raises a [`RuiWindow`]'s [`ZIndex`] and sets it as the active scope when clicked.
+/// System that raises a [`RuiWindow`]'s [`ZIndex`] above all other windows and sets it as the active scope when clicked.
 pub fn handle_window_focus(
     mouse: Res<ButtonInput<MouseButton>>,
     q_interactions: Query<(Entity, &bevy::ui::Pressed)>,
     parents: Query<&ChildOf>,
     mut q_windows: Query<&mut ZIndex, With<RuiWindow>>,
-    mut counter: Local<i32>,
     mut active_scope: ResMut<crate::focus::RuiActiveScope>,
 ) {
     if mouse.just_pressed(MouseButton::Left) {
@@ -158,9 +192,9 @@ pub fn handle_window_focus(
             }
         }
         if let Some(win) = clicked {
-            *counter += 1;
+            let max_z = q_windows.iter().map(|z| z.0).max().unwrap_or(100);
             if let Ok(mut z) = q_windows.get_mut(win) { 
-                *z = ZIndex(*counter); 
+                *z = ZIndex(max_z + 1); 
             }
             active_scope.set_active_window(win);
         }

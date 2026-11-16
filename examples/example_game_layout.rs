@@ -97,6 +97,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut theme: ResM
                     vb.reborrow()
                         .hbox(
                             |s| {
+                                s.width = Val::Auto;
+                                s.align_self = AlignSelf::Stretch;
                                 s.height = Val::Px(50.0);
                                 s.justify_content = JustifyContent::Center;
                                 s.align_items = AlignItems::Center;

@@ -50,14 +50,14 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut theme: ResM
                             |s| {
                                 s.width = Val::Percent(100.0);
                                 s.flex_grow = 1.0;
-                                s.padding = UiRect::all(Val::Px(8.0));
+                                s.padding = UiRect::all(Val::Px(10.0));
                             },
                             |scroll| {
                                 let mut sc = scroll.reborrow();
                                 for i in 1..=20 {
                                     sc.reborrow().button(
                                         |s| {
-                                            s.width = Val::Px(310.0);
+                                            s.width = Val::Px(304.0);
                                             s.height = Val::Px(40.0);
                                             s.margin = UiRect::bottom(Val::Px(6.0));
                                         },
