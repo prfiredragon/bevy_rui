@@ -1,6 +1,6 @@
 [package]
 name = "bevy_rui"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2024"
 readme = "README.md"
 repository = "https://github.com/prfiredragon/bevy_rui"
@@ -25,7 +25,7 @@ wayland = ["arboard/wayland-data-control"]
 
 
 [dependencies]
-bevy = { version = "0.20.0", features = ["bevy_feathers"] }
+bevy = { version = "0.20.1", features = ["bevy_feathers"] }
 ropey = "1.6"
 syntect = { version = "5.2", default-features = false, features = ["default-syntaxes", "default-themes", "regex-fancy"] }
-bevy_camera = "0.20.0"
+bevy_camera = "0.20.1"
