@@ -137,7 +137,17 @@ pub fn spawn_window<'w>(
         );
 
         parent.spawn((
-            Node { display: Display::Flex, flex_direction: FlexDirection::Column, flex_grow: 1.0, overflow: content_overflow, width: Val::Percent(100.0), padding: UiRect::all(Val::Px(10.0)), ..default() },
+            Node {
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
+                flex_grow: 1.0,
+                min_width: Val::Px(0.0),
+                min_height: Val::Px(0.0),
+                overflow: content_overflow,
+                width: Val::Percent(100.0),
+                padding: UiRect::all(Val::Px(10.0)),
+                ..default()
+            },
             Pickable::default(),
         )).with_children(|p| children(p, window_id));
     });
