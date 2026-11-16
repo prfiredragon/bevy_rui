@@ -3,6 +3,8 @@ name = "bevy_rui"
 version = "0.1.7"
 edition = "2024"
 readme = "README.md"
+exclude = ["assets/*", "docs/*", "screenshots/*", "*.png", "*.mp4"]
+include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
 
 #[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 #arboard = { version = "3.6.1", features = ["wayland-data-control"] }
@@ -23,4 +25,3 @@ bevy = { version = "0.20.0", features = ["bevy_feathers"] }
 ropey = "1.6"
 syntect = { version = "5.2", default-features = false, features = ["default-syntaxes", "default-themes", "regex-fancy"] }
 bevy_camera = "0.20.0"
-
