@@ -16,6 +16,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+    - name: Install Linux dependencies (Wayland, X11, ALSA, udev)
+       run: |
+         sudo apt-get update
+         sudo apt-get install -y g++ pkg-config libx11-dev libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
     - name: Build
       run: cargo build --verbose
     - name: Run tests
