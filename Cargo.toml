@@ -6,6 +6,7 @@ readme = "README.md"
 repository = "https://github.com/prfiredragon/bevy_rui"
 description = "UI widgets and layout system for the Bevy engine"
 license = "CC0-1.0"
+documentation = "https://docs.rs/bevy_rui/latest/bevy_rui/"
 exclude = ["assets/*", "docs/*", "screenshots/*", "*.png", "*.mp4"]
 include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
 
