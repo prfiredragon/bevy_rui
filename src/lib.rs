@@ -65,7 +65,6 @@ impl Plugin for RuiPlugin {
         app.add_observer(ensure_pickable::<focus::Focusable>);
         app.add_observer(ensure_pickable::<theme::RuiThemeElement>);
         app.add_plugins(navigation::RuiNavigationPlugin);
-        app.add_systems(Update, widgets::resizer::handle_resizer_drag);
         app.add_plugins(widgets::RuiWidgets);
     }
 }
