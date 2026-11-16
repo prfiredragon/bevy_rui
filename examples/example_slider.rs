@@ -16,6 +16,7 @@ fn main() {
             ..default()
         }))
         .add_plugins(RuiPlugin)
+        .insert_resource(RuiNavigationConfig { enabled: true })
         .add_systems(Startup, setup)
         .add_systems(Update, sync_slider_label)
         .run();
