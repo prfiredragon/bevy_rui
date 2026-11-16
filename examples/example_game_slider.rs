@@ -90,4 +90,9 @@ fn apply_game_theme(asset_server: &AssetServer, theme: &mut RuiTheme) {
     theme.image_button_pressed = Some(asset_server.load("theme/kenney/yellow/button_square_flat.png"));
     theme.button_margin = 10.0;
     theme.color_button_text = Color::srgb(0.2, 0.2, 0.2);
+    theme.image_slider_track = Some(asset_server.load("theme/kenney/blue/textbox_bg.png"));
+    theme.slider_track_margin = 4.0;
+    theme.image_progress_bar_fill = Some(asset_server.load("theme/kenney/yellow/button_square_flat.png"));
+    theme.progress_bar_fill_margin = 4.0;
+    theme.image_slider_handle = Some(asset_server.load("theme/kenney/yellow/button_square_depth_gradient.png"));
 }

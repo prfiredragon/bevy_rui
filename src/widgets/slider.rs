@@ -44,6 +44,7 @@ pub fn spawn_slider<'w>(
         height: Val::Px(24.0),
         align_items: AlignItems::Center,
         border: UiRect::all(Val::Px(2.0)),
+        border_radius: BorderRadius::all(Val::Px(6.0)),
         position_type: PositionType::Relative,
         ..default()
     };
@@ -56,7 +57,7 @@ pub fn spawn_slider<'w>(
         s,
         Pickable::default(),
         crate::focus::Focusable,
-        BorderColor::from(Color::srgb(0.1, 0.1, 0.1)),
+        BorderColor::from(Color::NONE),
     ));
     
 
@@ -65,11 +66,11 @@ pub fn spawn_slider<'w>(
         parent.spawn((
             Node {
                 position_type: PositionType::Absolute,
-                width: Val::Percent(100.0), height: Val::Px(6.0), left: Val::Px(0.0),
-                border_radius: BorderRadius::all(Val::Px(3.0)), ..default()
+                width: Val::Percent(100.0), height: Val::Px(10.0), left: Val::Px(0.0),
+                border_radius: BorderRadius::all(Val::Px(5.0)), ..default()
             },
             ImageNode::default(),
-            BackgroundColor(Color::srgb(0.1, 0.1, 0.1)),
+            BackgroundColor(Color::srgb(0.08, 0.10, 0.15)),
             Pickable { should_block_lower: false, is_hoverable: false },
             crate::theme::RuiThemeElement::SliderTrack,
         ));
@@ -78,11 +79,11 @@ pub fn spawn_slider<'w>(
         fill_id = parent.spawn((
             Node {
                 position_type: PositionType::Absolute,
-                width: Val::Percent(0.0), height: Val::Px(6.0), left: Val::Px(0.0),
-                border_radius: BorderRadius::all(Val::Px(3.0)), ..default()
+                width: Val::Percent(0.0), height: Val::Px(10.0), left: Val::Px(0.0),
+                border_radius: BorderRadius::all(Val::Px(5.0)), ..default()
             },
             ImageNode::default(),
-            BackgroundColor(Color::srgb(0.4, 0.6, 1.0)),
+            BackgroundColor(Color::srgb(1.0, 0.82, 0.18)),
             Pickable { should_block_lower: false, is_hoverable: false },
             RuiSliderFill,
             crate::theme::RuiThemeElement::ProgressBarFill,
@@ -92,15 +93,17 @@ pub fn spawn_slider<'w>(
         handle_id = parent.spawn((
             Node {
                 position_type: PositionType::Absolute,
-                width: Val::Px(16.0), height: Val::Px(16.0), left: Val::Px(0.0),
-                border_radius: BorderRadius::all(Val::Px(8.0)), ..default()
+                width: Val::Px(20.0), height: Val::Px(20.0), left: Val::Px(0.0),
+                border: UiRect::all(Val::Px(2.0)),
+                border_radius: BorderRadius::all(Val::Px(10.0)), ..default()
             },
             ImageNode::default(),
-            BackgroundColor(Color::srgb(0.9, 0.9, 0.9)),
+            BackgroundColor(Color::WHITE),
+            BorderColor::from(Color::srgb(0.15, 0.18, 0.25)),
             RuiSliderHandle,
             Pickable { should_block_lower: false, is_hoverable: true },
             RuiButtonStateColors {
-                normal: Color::srgb(0.9, 0.9, 0.9), hovered: Color::srgb(1.0, 1.0, 1.0), pressed: Color::srgb(0.7, 0.7, 0.7),
+                normal: Color::WHITE, hovered: Color::srgb(1.0, 0.95, 0.7), pressed: Color::srgb(0.95, 0.8, 0.2),
             },
             crate::theme::RuiThemeElement::SliderHandle,
         )).id();
@@ -193,7 +196,7 @@ pub fn update_slider_visuals(
 
         if let Ok(mut handle_node) = q_handles.get_mut(slider.handle_entity) {
             let pixel_x = pct * size_x;
-            handle_node.left = Val::Px(pixel_x - 8.0);
+            handle_node.left = Val::Px(pixel_x - 10.0);
         }
 
         if let Ok(mut fill_node) = q_fills.get_mut(slider.fill_entity) {
@@ -225,7 +228,7 @@ pub fn handle_slider_navigation(
         let is_focused = focus.get() == Some(entity);
         
         if is_focused {
-            *border = BorderColor::from(Color::srgb(0.4, 0.6, 1.0));
+            *border = BorderColor::from(Color::srgba(1.0, 0.9, 0.35, 0.85));
             
             let mut step_x = 0.0;
             if crate::navigation::check_keys(&keys, &bindings.left_keys)
@@ -276,7 +279,7 @@ pub fn handle_slider_navigation(
                 *hold_timer = 0.0;
             }
         } else {
-            *border = BorderColor::from(Color::srgb(0.1, 0.1, 0.1));
+            *border = BorderColor::from(Color::NONE);
         }
     }
 }
