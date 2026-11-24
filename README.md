@@ -1,4 +1,7 @@
 [![Rust](https://github.com/prfiredragon/bevy_rui/actions/workflows/rust.yml/badge.svg)](https://github.com/prfiredragon/bevy_rui/actions/workflows/rust.yml)
+[![Crates.io](https://img.shields.io/crates/v/bevy_rui.svg)](https://crates.io/crates/bevy_rui)
+[![Downloads](https://img.shields.io/crates/d/bevy_rui.svg)](https://crates.io/crates/bevy_rui)
+[![Docs](https://docs.rs/bevy_rui/badge.svg)](https://docs.rs/bevy/latest/bevy_rui/)
 
 # bevy_rui
 
